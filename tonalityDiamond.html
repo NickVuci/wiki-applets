@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tonality Diamond</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    .diamond-container {
+      position: relative;
+      width: 600px;
+      height: 600px;
+      margin-bottom: 20px;
+    }
+    .cell {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: #fff;
+      border: 1px solid #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(45deg);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .cell span {
+      transform: rotate(-45deg);
+      display: block;
+    }
+    .cell.active {
+      background: yellow;
+    }
+    .cell.bold-outline {
+      border: 3px solid #000;
+    }
+    .limit-toggle {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Tonality Diamond</h2>
+  <div class="limit-toggle">
+    <button onclick="renderDiamond('5-limit')">5-Limit</button>
+    <button onclick="renderDiamond('7-limit')">7-Limit</button>
+  </div>
+  <div class="diamond-container" id="diamond"></div>
+
+  <script>
+    const baseFreq = 392;
+    const diamond = document.getElementById('diamond');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const cells = [];
+
+    const layouts = {
+      "5-limit": [
+        { ratio: "3/2", x: 140, y: 0, vec: "0,2" },
+        { ratio: "5/4", x: 100, y: 40, vec: "-1,1" },
+        { ratio: "6/5", x: 180, y: 40, vec: "1,1" },
+        { ratio: "1/1", x: 60, y: 80, vec: "-2,0" },
+        { ratio: "1/1", x: 140, y: 80, vec: "0,0" },
+        { ratio: "1/1", x: 220, y: 80, vec: "2,0" },
+        { ratio: "8/5", x: 100, y: 120, lower: true, vec: "-1,-1" },
+        { ratio: "5/3", x: 180, y: 120, lower: true, vec: "1,-1" },
+        { ratio: "4/3", x: 140, y: 160, lower: true, vec: "0,-2" }
+      ],
+      "7-limit": [
+        { ratio: "7/4", x: 160, y: 0, vec: "0,3" },
+        { ratio: "3/2", x: 120, y: 40, vec: "-1,2" },
+        { ratio: "7/5", x: 200, y: 40, vec: "1,2" },
+        { ratio: "5/4", x: 80, y: 80, vec: "-2,1" },
+        { ratio: "6/5", x: 160, y: 80, vec: "0,1" },
+        { ratio: "7/6", x: 240, y: 80, vec: "2,1" },
+        { ratio: "1/1", x: 40, y: 120, vec: "-3,0" },
+        { ratio: "1/1", x: 120, y: 120, vec: "-1,0" },
+        { ratio: "1/1", x: 200, y: 120, vec: "1,0" },
+        { ratio: "1/1", x: 280, y: 120, vec: "3,0" },
+        { ratio: "8/5", x: 80, y: 160, lower: true, vec: "-2,-1" },
+        { ratio: "5/3", x: 160, y: 160, lower: true, vec: "0,-1" },
+        { ratio: "12/7", x: 240, y: 160, lower: true, vec: "2,-1" },
+        { ratio: "4/3", x: 120, y: 200, lower: true, vec: "-1,-2" },
+        { ratio: "10/7", x: 200, y: 200, lower: true, vec: "1,-2" },
+        { ratio: "8/7", x: 160, y: 240, lower: true, vec: "0,-3" }
+      ]
+    };
+
+    function parseRatio(r) {
+      const [num, den] = r.split("/").map(Number);
+      return num / den;
+    }
+
+    function playTone(freq) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const now = audioCtx.currentTime;
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + 0.6);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    }
+
+    function playNote(ratioStr, cell, lower) {
+      let freq = baseFreq * parseRatio(ratioStr);
+      if (lower) freq /= 2;
+      playTone(freq);
+      cell.classList.add('active');
+      setTimeout(() => cell.classList.remove('active'), 600);
+    }
+
+    function renderDiamond(limit) {
+      diamond.dataset.limit = limit;
+      diamond.innerHTML = "";
+      cells.length = 0;
+      const layout = layouts[limit];
+      layout.forEach(({ ratio, x, y, lower }) => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        if (lower) {
+          cell.classList.add('bold-outline');
+          cell.dataset.lower = 'true';
+        }
+        cell.style.left = `${x}px`;
+        cell.style.top = `${y}px`;
+        cell.dataset.ratio = ratio;
+        const label = document.createElement('span');
+        label.textContent = ratio;
+        cell.appendChild(label);
+        cell.addEventListener('click', () => playNote(ratio, cell, lower));
+        diamond.appendChild(cell);
+        cells.push(cell);
+      });
+    }
+
+    renderDiamond("5-limit");
+  </script>
+</body>
+</html>
