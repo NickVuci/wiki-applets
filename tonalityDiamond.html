@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tonality Diamond</title>
+  <title>Exploring Tonality Diamonds</title>
   <style>
     body {
+      user-select: none;
       font-family: sans-serif;
       background: #f4f4f4;
       display: flex;
@@ -14,6 +15,7 @@
       padding: 20px;
     }
     h2 {
+      user-select: none;
       margin-bottom: 10px;
     }
     .diamond-container {
@@ -36,14 +38,17 @@
       transition: background 0.2s;
     }
     .cell span {
+      width: 100%;
+      text-align: center;
+      user-select: none;
       transform: rotate(-45deg);
       display: block;
     }
     .cell.active {
       background: yellow;
     }
-    .cell.bold-outline {
-      border: 3px solid #000;
+    .cell.lower-highlight {
+      background: #ddd;
     }
     .limit-toggle {
       display: flex;
@@ -51,16 +56,18 @@
       margin-bottom: 10px;
     }
     button {
+      user-select: none;
       padding: 10px 15px;
       font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <h2>Tonality Diamond</h2>
+  <h2>Exploring Tonality Diamonds</h2>
   <div class="limit-toggle">
     <button onclick="renderDiamond('5-limit')">5-Limit</button>
     <button onclick="renderDiamond('7-limit')">7-Limit</button>
+    <button onclick="renderDiamond('11-limit')">11-Limit</button>
   </div>
   <div class="diamond-container" id="diamond"></div>
 
@@ -99,6 +106,44 @@
         { ratio: "4/3", x: 120, y: 200, lower: true, vec: "-1,-2" },
         { ratio: "10/7", x: 200, y: 200, lower: true, vec: "1,-2" },
         { ratio: "8/7", x: 160, y: 240, lower: true, vec: "0,-3" }
+      ],
+      "11-limit": [
+        { ratio: "7/4", x: 240, y: 0 },
+        { ratio: "3/2", x: 200, y: 40 },
+        { ratio: "14/9", x: 280, y: 40 },
+        { ratio: "11/8", x: 160, y: 80 },
+        { ratio: "12/9", x: 240, y: 80 },
+        { ratio: "7/5", x: 320, y: 80 },
+        { ratio: "5/4", x: 120, y: 120 },
+        { ratio: "11/9", x: 200, y: 120 },
+        { ratio: "6/5", x: 280, y: 120 },
+        { ratio: "14/11", x: 360, y: 120 },
+        { ratio: "9/8", x: 80, y: 160 },
+        { ratio: "10/9", x: 160, y: 160 },
+        { ratio: "11/10", x: 240, y: 160 },
+        { ratio: "12/11", x: 320, y: 160 },
+        { ratio: "7/6", x: 400, y: 160 },
+        { ratio: "1/1", x: 40, y: 200 },
+        { ratio: "1/1", x: 120, y: 200 },
+        { ratio: "1/1", x: 200, y: 200 },
+        { ratio: "1/1", x: 280, y: 200 },
+        { ratio: "1/1", x: 360, y: 200 },
+        { ratio: "1/1", x: 440, y: 200 },
+        { ratio: "16/9", x: 80, y: 240, lower: true },
+        { ratio: "9/5", x: 160, y: 240, lower: true },
+        { ratio: "20/11", x: 240, y: 240, lower: true },
+        { ratio: "11/6", x: 320, y: 240, lower: true },
+        { ratio: "12/7", x: 400, y: 240, lower: true },
+        { ratio: "8/5", x: 120, y: 280, lower: true },
+        { ratio: "18/11", x: 200, y: 280, lower: true },
+        { ratio: "5/3", x: 280, y: 280, lower: true },
+        { ratio: "11/7", x: 360, y: 280, lower: true },
+        { ratio: "16/11", x: 160, y: 320, lower: true },
+        { ratio: "9/6", x: 240, y: 320, lower: true },
+        { ratio: "10/7", x: 320, y: 320, lower: true },
+        { ratio: "4/3", x: 200, y: 360, lower: true },
+        { ratio: "9/7", x: 280, y: 360, lower: true },
+        { ratio: "8/7", x: 240, y: 400, lower: true }
       ]
     };
 
@@ -125,29 +170,40 @@
       let freq = baseFreq * parseRatio(ratioStr);
       if (lower) freq /= 2;
       playTone(freq);
+      cell.classList.remove('lower-highlight');
       cell.classList.add('active');
-      setTimeout(() => cell.classList.remove('active'), 600);
+      setTimeout(() => {
+        cell.classList.remove('active');
+        if (cell.dataset.lower === 'true') cell.classList.add('lower-highlight');
+      }, 600);
     }
 
     function renderDiamond(limit) {
       diamond.dataset.limit = limit;
       diamond.innerHTML = "";
+      const containerWidth = 600;
+      const containerHeight = 600;
+      const cellSize = 60;
+      const centerX = containerWidth / 2 - cellSize / 2;
+      const centerY = containerHeight / 2 - cellSize / 2;
       cells.length = 0;
       const layout = layouts[limit];
       layout.forEach(({ ratio, x, y, lower }) => {
         const cell = document.createElement('div');
         cell.className = 'cell';
         if (lower) {
-          cell.classList.add('bold-outline');
+          cell.classList.add('lower-highlight');
           cell.dataset.lower = 'true';
         }
-        cell.style.left = `${x}px`;
-        cell.style.top = `${y}px`;
+        const offset = limit === '11-limit' ? 240 : limit === '7-limit' ? 160 : 140;
+        cell.style.left = `${centerX + x - offset}px`;
+        cell.style.top = `${centerY + y - 200}px`;
         cell.dataset.ratio = ratio;
         const label = document.createElement('span');
         label.textContent = ratio;
         cell.appendChild(label);
         cell.addEventListener('click', () => playNote(ratio, cell, lower));
+        cell.addEventListener('touchstart', () => playNote(ratio, cell, lower));
         diamond.appendChild(cell);
         cells.push(cell);
       });
