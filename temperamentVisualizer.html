@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JI Interval Ruler</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      font-family: sans-serif;
+      background: #f4f4f4;
+    }
+    canvas {
+      display: block;
+      background: #fff;
+      width: 100vw;
+      height: 100vh;
+    }
+    #controls {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="visualizer"></canvas>
+  <div id="controls">
+    <div class="control-group">
+      <label>Gen A (cents): <input type="range" id="sliderA" min="1" max="1200" step="0.01" value="700"> <input type="number" id="genA" min="1" max="1200" step="0.01" value="700"></label>
+      <label>Steps A: <input type="number" id="stepsA" min="0" value="0"></label>
+    </div>
+    <div class="control-group">
+      <label>Gen B (cents): <input type="range" id="sliderB" min="1" max="1200" step="0.01" value="386.31"> <input type="number" id="genB" min="1" max="1200" step="0.01" value="386.31"></label>
+      <label>Steps B: <input type="number" id="stepsB" min="0" value="0"></label>
+    </div>
+    <div class="control-group">
+      <label>Gen C (cents): <input type="range" id="sliderC" min="1" max="1200" step="0.01" value="204.0"> <input type="number" id="genC" min="1" max="1200" step="0.01" value="204.0"></label>
+      <label>Steps C: <input type="number" id="stepsC" min="0" value="0"></label>
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById('visualizer');
+    const ctx = canvas.getContext('2d');
+
+    const sliders = [
+      document.getElementById('sliderA'),
+      document.getElementById('sliderB'),
+      document.getElementById('sliderC')
+    ];
+
+    const boxes = [
+      document.getElementById('genA'),
+      document.getElementById('genB'),
+      document.getElementById('genC')
+    ];
+
+    const stepsInputs = [
+      document.getElementById('stepsA'),
+      document.getElementById('stepsB'),
+      document.getElementById('stepsC')
+    ];
+
+    sliders.forEach((slider, i) => {
+      slider.addEventListener('input', () => {
+        boxes[i].value = slider.value;
+        drawJIRuler();
+      });
+    });
+
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        sliders[i].value = box.value;
+        drawJIRuler();
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const activeElement = document.activeElement;
+      const index = boxes.findIndex(b => b === activeElement);
+      if (index === -1) return;
+      let val = parseFloat(boxes[index].value);
+      if (e.key === 'ArrowRight') {
+        val += 1.0;
+      } else if (e.key === 'ArrowLeft') {
+        val -= 1.0;
+      } else if (e.key === 'ArrowUp') {
+        val = Math.round((val + 0.1) * 1000) / 1000;
+      } else if (e.key === 'ArrowDown') {
+        val = Math.round((val - 0.1) * 1000) / 1000;
+      } else {
+        return;
+      }
+      val = Math.max(1, Math.min(1200, val));
+      boxes[index].value = val.toFixed(2);
+      sliders[index].value = val.toFixed(2);
+      drawJIRuler();
+    });
+
+    stepsInputs.forEach(input => input.addEventListener('input', drawJIRuler));
+
+    function updateCanvasSize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    updateCanvasSize();
+
+    const octave = 1200;
+
+    const intervalData = [
+      { ratio: "1/1", limit: 1 }, { ratio: "9/8", limit: 3 }, { ratio: "5/4", limit: 5 }, { ratio: "4/3", limit: 3 },
+      { ratio: "11/8", limit: 11 }, { ratio: "3/2", limit: 3 }, { ratio: "5/3", limit: 5 }, { ratio: "7/4", limit: 7 },
+      { ratio: "15/8", limit: 5 }, { ratio: "7/5", limit: 7 }, { ratio: "6/5", limit: 5 }, { ratio: "10/9", limit: 5 },
+      { ratio: "11/9", limit: 11 }, { ratio: "12/11", limit: 11 }, { ratio: "14/11", limit: 7 }, { ratio: "11/10", limit: 11 },
+      { ratio: "9/5", limit: 5 }, { ratio: "18/11", limit: 11 }, { ratio: "11/6", limit: 11 }, { ratio: "11/7", limit: 11 },
+      { ratio: "10/7", limit: 5 }, { ratio: "9/7", limit: 7 }, { ratio: "8/7", limit: 7 }, { ratio: "16/11", limit: 11 },
+      { ratio: "16/9", limit: 3 }, { ratio: "14/9", limit: 7 }, { ratio: "20/11", limit: 11 }, { ratio: "7/6", limit: 7 },
+      { ratio: "8/5", limit: 5 }, { ratio: "2/1", limit: 1 }
+    ];
+
+    const limitColors = {
+      1: '#000000',
+      3: '#0074D9',
+      5: '#2ECC40',
+      7: '#FF851B',
+      11: '#B10DC9'
+    };
+
+    const jiTargets = intervalData.map(({ ratio, limit }) => {
+      const [n, d] = ratio.split('/').map(Number);
+      let cents = Math.log2(n / d) * 1200;
+      if (cents < 0) cents += 1200;
+      if (cents >= 1200) cents = 1199.9;
+      return { ratio, cents, limit };
+    }).sort((a, b) => a.cents - b.cents);
+
+    function drawJIRuler() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.font = '14px sans-serif';
+
+      jiTargets.forEach(({ ratio, cents, limit }) => {
+        const padding = 20;
+        const x = padding + ((cents / octave) * (canvas.width - 2 * padding));
+        let yOffset;
+        if (ratio === "11/10" || ratio === "20/11") {
+          yOffset = 30;
+        } else if (ratio === "9/7") {
+          yOffset = 50;
+        } else if (limit <= 3) {
+          yOffset = 80;
+        } else if (limit <= 5) {
+          yOffset = 60;
+        } else if (limit <= 7) {
+          yOffset = 40;
+        } else {
+          yOffset = 10;
+        }
+        ctx.beginPath();
+        ctx.moveTo(x, yOffset + 20);
+        ctx.lineTo(x, canvas.height);
+        ctx.strokeStyle = limitColors[limit] || '#666';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = limitColors[limit] || '#000';
+        ctx.fillText(ratio, x, yOffset);
+      });
+
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+
+      boxes.forEach((box, i) => {
+        const genSize = parseFloat(box.value);
+        const steps = parseInt(stepsInputs[i].value);
+        const y = canvas.height - 220 - i * 40;
+        for (let step = 1; step <= steps; step++) {
+          const cents = (step * genSize) % octave;
+          const x = ((cents / octave) * (canvas.width - 40)) + 20;
+          ctx.beginPath();
+          ctx.moveTo(x, y - 10);
+          ctx.lineTo(x, y + 10);
+          ctx.stroke();
+        }
+      });
+
+      const combinedSteps = [];
+      boxes.forEach((box, i) => {
+        const genSize = parseFloat(box.value);
+        const steps = parseInt(stepsInputs[i].value);
+        for (let step = 1; step <= steps; step++) {
+          const cents = (step * genSize) % octave;
+          combinedSteps.push(cents);
+        }
+      });
+
+      const yTop = canvas.height / 2;
+      combinedSteps.sort((a, b) => a - b);
+      combinedSteps.forEach(cents => {
+        const x = ((cents / octave) * (canvas.width - 40)) + 20;
+        ctx.beginPath();
+        ctx.moveTo(x, yTop - 20);
+        ctx.lineTo(x, yTop + 20);
+        ctx.stroke();
+      });
+    }
+
+    drawJIRuler();
+    window.addEventListener('resize', () => {
+      updateCanvasSize();
+      drawJIRuler();
+    });
+  </script>
+</body>
+</html>
