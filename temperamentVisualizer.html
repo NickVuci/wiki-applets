@@ -75,33 +75,31 @@
     ];
 
     sliders.forEach((slider, i) => {
-      slider.addEventListener('input', () => {
-        boxes[i].value = slider.value;
-        drawJIRuler();
+        slider.addEventListener('input', () => {
+          boxes[i].value = slider.value;
+          drawJIRuler();
+        });
+      
+        slider.addEventListener('keydown', (e) => {
+          e.preventDefault(); // Prevent default slider behavior
+          let val = parseFloat(slider.value);
+      
+          if (e.key === 'ArrowRight') val += 1.0; // Adjust by 1 cent
+          else if (e.key === 'ArrowLeft') val -= 1.0; // Adjust by 1 cent
+          else if (e.key === 'ArrowUp') val = Math.round((val + 0.1) * 1000) / 1000; // Adjust by 0.1 cent
+          else if (e.key === 'ArrowDown') val = Math.round((val - 0.1) * 1000) / 1000; // Adjust by 0.1 cent
+          else return;
+      
+          val = Math.max(1, Math.min(1200, val)); // Clamp value between 1 and 1200
+          slider.value = val.toFixed(2);
+          boxes[i].value = val.toFixed(2);
+          drawJIRuler();
+        });
       });
-    });
-    boxes.forEach((box, i) => {
-      box.addEventListener('input', () => {
-        sliders[i].value = box.value;
+    stepsInputs.forEach((stepsInput, i) => {
+    stepsInput.addEventListener('input', () => {
         drawJIRuler();
-      });
-    });
-    stepsInputs.forEach(input => input.addEventListener('input', drawJIRuler));
-
-    document.addEventListener('keydown', (e) => {
-      const activeElement = document.activeElement;
-      const index = boxes.findIndex(b => b === activeElement);
-      if (index === -1) return;
-      let val = parseFloat(boxes[index].value);
-      if (e.key === 'ArrowRight') val += 1.0;
-      else if (e.key === 'ArrowLeft') val -= 1.0;
-      else if (e.key === 'ArrowUp') val = Math.round((val + 0.1) * 1000) / 1000;
-      else if (e.key === 'ArrowDown') val = Math.round((val - 0.1) * 1000) / 1000;
-      else return;
-      val = Math.max(1, Math.min(1200, val));
-      boxes[index].value = val.toFixed(2);
-      sliders[index].value = val.toFixed(2);
-      drawJIRuler();
+        });
     });
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -167,70 +165,73 @@
     }).sort((a, b) => a.cents - b.cents);
 
     function drawJIRuler() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.font = '14px sans-serif';
-
-      jiTargets.forEach(({ ratio, cents, limit }) => {
-        const padding = 20;
-        const x = padding + ((cents / octave) * (canvas.width - 2 * padding));
-        let yOffset;
-        if (ratio === "11/10" || ratio === "20/11") yOffset = 30;
-        else if (ratio === "9/7") yOffset = 50;
-        else if (limit <= 3) yOffset = 80;
-        else if (limit <= 5) yOffset = 60;
-        else if (limit <= 7) yOffset = 40;
-        else yOffset = 10;
-        ctx.beginPath();
-        ctx.moveTo(x, yOffset + 20);
-        ctx.lineTo(x, canvas.height);
-        ctx.strokeStyle = limitColors[limit] || '#666';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.fillStyle = limitColors[limit] || '#000';
-        ctx.fillText(ratio, x, yOffset);
-      });
-
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-
-      boxes.forEach((box, i) => {
-        const genSize = parseFloat(box.value);
-        const steps = parseInt(stepsInputs[i].value);
-        const y = canvas.height - 220 - i * 40;
-        for (let step = 1; step <= steps; step++) {
-          const cents = (step * genSize) % octave;
-          const x = ((cents / octave) * (canvas.width - 40)) + 20;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = '14px sans-serif';
+      
+        jiTargets.forEach(({ ratio, cents, limit }) => {
+          const padding = 20;
+          const x = padding + ((cents / octave) * (canvas.width - 2 * padding));
+          let yOffset;
+          if (ratio === "11/10" || ratio === "20/11") yOffset = 30;
+          else if (ratio === "9/7") yOffset = 50;
+          else if (limit <= 3) yOffset = 80;
+          else if (limit <= 5) yOffset = 60;
+          else if (limit <= 7) yOffset = 40;
+          else yOffset = 10;
           ctx.beginPath();
-          ctx.moveTo(x, y - 10);
-          ctx.lineTo(x, y + 10);
+          ctx.moveTo(x, yOffset + 20);
+          ctx.lineTo(x, canvas.height);
+          ctx.strokeStyle = limitColors[limit] || '#666';
+          ctx.lineWidth = 1;
           ctx.stroke();
-        }
-      });
-
-      const combinedSteps = [];
-      boxes.forEach((box, i) => {
-        const genSize = parseFloat(box.value);
-        const steps = parseInt(stepsInputs[i].value);
-        for (let step = 1; step <= steps; step++) {
-          const cents = (step * genSize) % octave;
-          combinedSteps.push(cents);
-        }
-      });
-
-      const yTop = canvas.height / 2;
-      combinedBarPositions = [];
-      combinedSteps.sort((a, b) => a - b);
-      combinedSteps.forEach(cents => {
-        const x = ((cents / octave) * (canvas.width - 40)) + 20;
-        combinedBarPositions.push(x);
-        ctx.beginPath();
-        ctx.moveTo(x, yTop - 20);
-        ctx.lineTo(x, yTop + 20);
-        ctx.stroke();
-      });
-    }
+          ctx.fillStyle = limitColors[limit] || '#000';
+          ctx.fillText(ratio, x, yOffset);
+        });
+      
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+      
+        boxes.forEach((box, i) => {
+          const genSize = parseFloat(box.value);
+          const steps = parseInt(stepsInputs[i].value);
+          const y = canvas.height - 220 - i * 40;
+          for (let step = 1; step <= steps; step++) {
+            const cents = (step * genSize) % octave;
+            const x = ((cents / octave) * (canvas.width - 40)) + 20;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 10);
+            ctx.lineTo(x, y + 10);
+            ctx.stroke();
+          }
+        });
+      
+        const combinedSteps = [];
+        boxes.forEach((box, i) => {
+          const genSize = parseFloat(box.value);
+          const steps = parseInt(stepsInputs[i].value);
+          for (let step = 1; step <= steps; step++) {
+            const cents = (step * genSize) % octave;
+            combinedSteps.push(cents);
+          }
+        });
+      
+        // Ensure there is always a bar at 1/1 (0 cents)
+        combinedSteps.push(0);
+      
+        const yTop = canvas.height / 2;
+        combinedBarPositions = [];
+        combinedSteps.sort((a, b) => a - b);
+        combinedSteps.forEach(cents => {
+          const x = ((cents / octave) * (canvas.width - 40)) + 20;
+          combinedBarPositions.push(x);
+          ctx.beginPath();
+          ctx.moveTo(x, yTop - 20);
+          ctx.lineTo(x, yTop + 20);
+          ctx.stroke();
+        });
+      }
 
     drawJIRuler();
     window.addEventListener('resize', () => {
