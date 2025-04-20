@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JI Interval Ruler</title>
   <style>
     html, body {
@@ -58,19 +58,16 @@
   <script>
     const canvas = document.getElementById('visualizer');
     const ctx = canvas.getContext('2d');
-
     const sliders = [
       document.getElementById('sliderA'),
       document.getElementById('sliderB'),
       document.getElementById('sliderC')
     ];
-
     const boxes = [
       document.getElementById('genA'),
       document.getElementById('genB'),
       document.getElementById('genC')
     ];
-
     const stepsInputs = [
       document.getElementById('stepsA'),
       document.getElementById('stepsB'),
@@ -83,37 +80,60 @@
         drawJIRuler();
       });
     });
-
     boxes.forEach((box, i) => {
       box.addEventListener('input', () => {
         sliders[i].value = box.value;
         drawJIRuler();
       });
     });
+    stepsInputs.forEach(input => input.addEventListener('input', drawJIRuler));
 
     document.addEventListener('keydown', (e) => {
       const activeElement = document.activeElement;
       const index = boxes.findIndex(b => b === activeElement);
       if (index === -1) return;
       let val = parseFloat(boxes[index].value);
-      if (e.key === 'ArrowRight') {
-        val += 1.0;
-      } else if (e.key === 'ArrowLeft') {
-        val -= 1.0;
-      } else if (e.key === 'ArrowUp') {
-        val = Math.round((val + 0.1) * 1000) / 1000;
-      } else if (e.key === 'ArrowDown') {
-        val = Math.round((val - 0.1) * 1000) / 1000;
-      } else {
-        return;
-      }
+      if (e.key === 'ArrowRight') val += 1.0;
+      else if (e.key === 'ArrowLeft') val -= 1.0;
+      else if (e.key === 'ArrowUp') val = Math.round((val + 0.1) * 1000) / 1000;
+      else if (e.key === 'ArrowDown') val = Math.round((val - 0.1) * 1000) / 1000;
+      else return;
       val = Math.max(1, Math.min(1200, val));
       boxes[index].value = val.toFixed(2);
       sliders[index].value = val.toFixed(2);
       drawJIRuler();
     });
 
-    stepsInputs.forEach(input => input.addEventListener('input', drawJIRuler));
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let combinedBarPositions = [];
+    let lastPlayedBar = null;
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const yTop = canvas.height / 2;
+
+      for (const barX of combinedBarPositions) {
+        if (y > yTop - 20 && y < yTop + 20 && Math.abs(barX - x) < 3) {
+          if (lastPlayedBar !== barX) {
+            lastPlayedBar = barX;
+            const cents = ((barX - 20) / (canvas.width - 40)) * 1200;
+            const freq = 440 * Math.pow(2, (cents - 900) / 1200);
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+            osc.connect(gain).connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+          }
+          return;
+        }
+      }
+      lastPlayedBar = null;
+    });
 
     function updateCanvasSize() {
       canvas.width = window.innerWidth;
@@ -123,7 +143,6 @@
     updateCanvasSize();
 
     const octave = 1200;
-
     const intervalData = [
       { ratio: "1/1", limit: 1 }, { ratio: "9/8", limit: 3 }, { ratio: "5/4", limit: 5 }, { ratio: "4/3", limit: 3 },
       { ratio: "11/8", limit: 11 }, { ratio: "3/2", limit: 3 }, { ratio: "5/3", limit: 5 }, { ratio: "7/4", limit: 7 },
@@ -136,11 +155,7 @@
     ];
 
     const limitColors = {
-      1: '#000000',
-      3: '#0074D9',
-      5: '#2ECC40',
-      7: '#FF851B',
-      11: '#B10DC9'
+      1: '#000000', 3: '#0074D9', 5: '#2ECC40', 7: '#FF851B', 11: '#B10DC9'
     };
 
     const jiTargets = intervalData.map(({ ratio, limit }) => {
@@ -161,19 +176,12 @@
         const padding = 20;
         const x = padding + ((cents / octave) * (canvas.width - 2 * padding));
         let yOffset;
-        if (ratio === "11/10" || ratio === "20/11") {
-          yOffset = 30;
-        } else if (ratio === "9/7") {
-          yOffset = 50;
-        } else if (limit <= 3) {
-          yOffset = 80;
-        } else if (limit <= 5) {
-          yOffset = 60;
-        } else if (limit <= 7) {
-          yOffset = 40;
-        } else {
-          yOffset = 10;
-        }
+        if (ratio === "11/10" || ratio === "20/11") yOffset = 30;
+        else if (ratio === "9/7") yOffset = 50;
+        else if (limit <= 3) yOffset = 80;
+        else if (limit <= 5) yOffset = 60;
+        else if (limit <= 7) yOffset = 40;
+        else yOffset = 10;
         ctx.beginPath();
         ctx.moveTo(x, yOffset + 20);
         ctx.lineTo(x, canvas.height);
@@ -212,9 +220,11 @@
       });
 
       const yTop = canvas.height / 2;
+      combinedBarPositions = [];
       combinedSteps.sort((a, b) => a - b);
       combinedSteps.forEach(cents => {
         const x = ((cents / octave) * (canvas.width - 40)) + 20;
+        combinedBarPositions.push(x);
         ctx.beginPath();
         ctx.moveTo(x, yTop - 20);
         ctx.lineTo(x, yTop + 20);
