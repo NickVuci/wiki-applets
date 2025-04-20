@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Microtonal Tuner (19-EDO)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f4f4f4;
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.6em;
+      margin: 0.5em 0;
+    }
+    #note {
+      font-size: 2.4em;
+      margin: 0.4em 0;
+    }
+    #deviation {
+      font-size: 1.5em;
+      color: #444;
+    }
+    #start-btn {
+      padding: 1em 2em;
+      font-size: 1.2em;
+      margin-top: 2em;
+      border: none;
+      border-radius: 12px;
+      background: #ffc107;
+      color: #000;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #start-btn:hover {
+      background: #e0a800;
+    }
+  </style>
+</head>
+<body>
+  <h1>Microtonal Tuner (19-EDO)</h1>
+  <div id="note">Tap Start</div>
+  <div id="deviation"></div>
+  <button id="start-btn">Start Tuner</button>
+
+  <script type="module">
+    import { detectPitch } from "https://cdn.jsdelivr.net/npm/pitchy@3.1.0/+esm";
+
+    const noteDisplay = document.getElementById("note");
+    const devDisplay = document.getElementById("deviation");
+    const button = document.getElementById("start-btn");
+
+    const edoSteps = 19;
+    const a440Index = 0;
+    const edoFrequencies = [];
+    for (let i = -60; i <= 60; i++) {
+      const freq = 440 * Math.pow(2, i / edoSteps);
+      edoFrequencies.push(freq);
+    }
+
+    function findClosestEDO(freq) {
+      let minDiff = Infinity;
+      let closestFreq = null;
+      let index = 0;
+      edoFrequencies.forEach((f, i) => {
+        const diff = Math.abs(f - freq);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestFreq = f;
+          index = i;
+        }
+      });
+      const cents = 1200 * Math.log2(freq / closestFreq);
+      return {
+        targetFreq: closestFreq,
+        step: index - 60,
+        cents: cents
+      };
+    }
+
+    async function startTuner() {
+      button.style.display = "none";
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const context = new AudioContext();
+      const source = context.createMediaStreamSource(mic);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      const input = new Float32Array(analyser.fftSize);
+
+      function update() {
+        analyser.getFloatTimeDomainData(input);
+        const [pitch, clarity] = detectPitch(input, context.sampleRate);
+        if (clarity > 0.9 && pitch > 50 && pitch < 2000) {
+          const match = findClosestEDO(pitch);
+          noteDisplay.textContent = `Step ${match.step >= 0 ? "+" : ""}${match.step}`;
+          devDisplay.textContent = `${pitch.toFixed(1)} Hz → ${match.targetFreq.toFixed(1)} Hz\nDeviation: ${match.cents.toFixed(1)} cents`;
+        } else {
+          noteDisplay.textContent = "Listening...";
+          devDisplay.textContent = "";
+        }
+        requestAnimationFrame(update);
+      }
+
+      update();
+    }
+
+    button.addEventListener("click", startTuner);
+  </script>
+</body>
+</html>
