@@ -2,14 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Exploring Tonality Diamonds</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
-      overflow: hidden; /* Prevent scrolling */
+      overflow: hidden;
+      -webkit-overflow-scrolling: touch;
     }
   
     body {
@@ -18,11 +21,15 @@
       align-items: center;
       justify-content: center;
       user-select: none;
-      font-family: sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #f4f4f4;
-      touch-action: none; /* Disable touch gestures */
-      caret-color: transparent; /* Prevent text cursor from appearing */
+      touch-action: none;
+      caret-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
+
     .app-container {
       display: flex;
       flex-direction: column;
@@ -30,7 +37,9 @@
       justify-content: center;
       height: 100%;
       width: 100%;
+      position: relative;
     }
+
     h1 {
       position: fixed;
       top: 0;
@@ -39,26 +48,66 @@
       margin: 0;
       padding: 10px;
       background: #f4f4f4;
-      z-index: 10; /* Ensure it stays above other elements */
+      z-index: 10;
       width: 100%;
       text-align: center;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      font-size: clamp(1.2rem, 4vw, 2rem);
     }
-  
+
+    .audio-init-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      color: white;
+      text-align: center;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .audio-init-button {
+      padding: 15px 30px;
+      font-size: 18px;
+      background: #007AFF;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .audio-init-button:hover {
+      background: #0056CC;
+    }
+
     .diamond-container {
       position: relative;
       width: 600px;
       height: 600px;
+      margin-top: 80px;
+      transform-origin: center center;
     }
+
     .limit-toggle {
       position: fixed;
-      top: 100px;
+      top: 60px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 10px; /* Use consistent gap value */
+      gap: 10px;
       margin-bottom: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      z-index: 9;
     }
+
     .cell {
       position: absolute;
       width: 60px;
@@ -70,42 +119,157 @@
       justify-content: center;
       transform: rotate(45deg);
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s ease;
+      will-change: background-color, transform;
+      -webkit-tap-highlight-color: transparent;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
+
     .cell span {
       text-align: center;
       user-select: none;
       transform: rotate(-45deg);
+      font-size: 0.9rem;
+      font-weight: 500;
     }
+
     .cell.active {
-      background: yellow;
+      background: #FFD700;
+      transform: rotate(45deg);
+      box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
     }
+
     .cell.lower-highlight {
-      background: #ddd;
+      background: #e8e8e8;
     }
+
     button {
       user-select: none;
-      padding: 10px 15px;
-      font-size: 14px;
+      padding: 8px 12px;
+      font-size: clamp(12px, 3vw, 14px);
+      background: #fff;
+      border: 1px solid #999;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover, button:active {
+      background: #e0e0e0;
+    }
+
+    .instructions {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: clamp(10px, 2.5vw, 12px);
+      color: #666;
+      z-index: 9;
+      background: rgba(244, 244, 244, 0.9);
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 700px) {
+      .diamond-container {
+        transform: scale(0.8);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .diamond-container {
+        transform: scale(0.7);
+      }
+    }
+
+    @media (max-width: 500px) {
+      .diamond-container {
+        transform: scale(0.6);
+      }
+    }
+
+    @media (max-width: 400px) {
+      .diamond-container {
+        transform: scale(0.5);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .limit-toggle {
+        top: 50px;
+        gap: 5px;
+      }
+      
+      h1 {
+        font-size: 1.2rem;
+        padding: 8px;
+      }
+      
+      .diamond-container {
+        margin-top: 100px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      h1 {
+        font-size: 1rem;
+        padding: 5px;
+      }
+      
+      .limit-toggle {
+        top: 35px;
+        gap: 5px;
+      }
+      
+      .diamond-container {
+        margin-top: 70px;
+        transform: scale(0.7);
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 400px) {
+      .diamond-container {
+        transform: scale(0.5);
+      }
     }
   </style>
 </head>
 <body>
+  <div class="audio-init-overlay" id="audioInitOverlay">
+    <div>
+      <h2>🎵 Tonality Diamond</h2>
+      <p>Tap to enable audio and start exploring</p>
+      <button class="audio-init-button" id="audioInitButton">Enable Audio</button>
+    </div>
+  </div>
+
   <div class="app-container">
     <h1>Exploring Tonality Diamonds</h1>
+    <div class="limit-toggle" id="limitToggle"></div>
     <div class="diamond-container" id="diamond"></div>
-    <div class="limit-toggle"></div>
-
+    <div class="instructions">
+      Hold Shift (desktop) to sustain notes • Drag to play multiple notes
+    </div>
+  </div>
 
   <script>
     const baseFreq = 392;
     const diamond = document.getElementById('diamond');
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const masterGain = audioCtx.createGain();
-    masterGain.gain.setValueAtTime(0.5, audioCtx.currentTime); // Set an initial safe volume
-    masterGain.connect(audioCtx.destination);
+    const limitToggle = document.getElementById('limitToggle');
+    const audioInitOverlay = document.getElementById('audioInitOverlay');
+    const audioInitButton = document.getElementById('audioInitButton');
+    
+    let audioCtx;
+    let masterGain;
+    let isAudioInitialized = false;
     const cells = [];
-    const activeNotes = new Map(); // Map to store active notes by cell
+    const activeNotes = new Map();
+    let isShiftHeld = false;
+    let isMouseDown = false;
+    let lastActivatedCell = null;
 
     const layouts = {
       "5-limit": [
@@ -177,85 +341,99 @@
       ]
     };
 
+    function initAudioContext() {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        masterGain.connect(audioCtx.destination);
+        isAudioInitialized = true;
+        
+        // Hide the overlay
+        audioInitOverlay.style.display = 'none';
+        
+        return true;
+      } catch (error) {
+        console.error('Failed to initialize audio context:', error);
+        alert('Audio initialization failed. Some browsers require HTTPS for audio.');
+        return false;
+      }
+    }
+
     function parseRatio(r) {
       const [num, den] = r.split("/").map(Number);
       return num / den;
     }
 
-    function playTone(freq) {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      const now = audioCtx.currentTime;
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.3, now + 0.02);
-      gain.gain.linearRampToValueAtTime(0, now + 0.6);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.connect(gain).connect(masterGain);
-      osc.start(now);
-      osc.stop(now + 0.6);
-    }
-
     function playNote(ratioStr, cell, lower) {
-      // Stop the existing oscillator if the note is already active
-      if (activeNotes.has(cell)) {
-        const { osc, gain } = activeNotes.get(cell);
+      if (!isAudioInitialized) return;
+
+      try {
+        // Resume audio context if it's suspended (Safari requirement)
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        // Stop the existing oscillator if the note is already active
+        if (activeNotes.has(cell)) {
+          const { osc, gain } = activeNotes.get(cell);
+          const now = audioCtx.currentTime;
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(gain.gain.value, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.1);
+          osc.stop(now + 0.1);
+          activeNotes.delete(cell);
+        }
+
+        let freq = baseFreq * parseRatio(ratioStr);
+        if (lower) freq /= 2;
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
         const now = audioCtx.currentTime;
-        gain.gain.linearRampToValueAtTime(0, now + 0.1); // Fade out quickly
-        osc.stop(now + 0.1); // Stop the existing oscillator
-        activeNotes.delete(cell); // Remove it from the activeNotes map
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.connect(gain).connect(masterGain);
+        osc.start(now);
+
+        // Visual feedback
+        cell.classList.remove('lower-highlight');
+        cell.classList.add('active');
+
+        if (!isShiftHeld) {
+          gain.gain.linearRampToValueAtTime(0, now + 0.6);
+          osc.stop(now + 0.6);
+          setTimeout(() => {
+            cell.classList.remove('active');
+            if (lower) cell.classList.add('lower-highlight');
+          }, 600);
+        } else {
+          activeNotes.set(cell, { osc, gain });
+        }
+
+        // Dynamically adjust the master gain based on the number of active notes
+        const activeCount = Math.max(1, activeNotes.size + (isShiftHeld ? 0 : 1));
+        const newGain = Math.min(0.8, 1 / Math.sqrt(activeCount));
+        masterGain.gain.cancelScheduledValues(now);
+        masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+        masterGain.gain.linearRampToValueAtTime(newGain, now + 0.1);
+        
+      } catch (error) {
+        console.error('Error playing note:', error);
       }
-
-      let freq = baseFreq * parseRatio(ratioStr);
-      if (lower) freq /= 2;
-
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      const now = audioCtx.currentTime;
-
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.3, now + 0.02);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now);
-      osc.connect(gain).connect(masterGain); // Connect to master gain
-      osc.start(now);
-
-      // If Shift is not held, stop the note after 600ms
-      if (!isShiftHeld) {
-        gain.gain.linearRampToValueAtTime(0, now + 0.6);
-        osc.stop(now + 0.6);
-      }
-
-      // Visual feedback
-      cell.classList.remove('lower-highlight');
-      cell.classList.add('active');
-
-      if (!isShiftHeld) {
-        setTimeout(() => {
-          cell.classList.remove('active');
-          if (lower) cell.classList.add('lower-highlight');
-        }, 600);
-      }
-
-      // If Shift is held, store the oscillator and gain for manual stopping
-      if (isShiftHeld) {
-        activeNotes.set(cell, { osc, gain });
-      }
-
-      // Dynamically adjust the master gain based on the number of active notes
-      const activeCount = activeNotes.size + 1; // Include the current note
-      masterGain.gain.setValueAtTime(1 / Math.sqrt(activeCount), audioCtx.currentTime); // Reduce gain as more notes are played
     }
 
     function renderDiamond(limit) {
       diamond.dataset.limit = limit;
       diamond.innerHTML = "";
-      const containerWidth = 600;
-      const containerHeight = 600;
-      const cellSize = 60;
-      const centerX = containerWidth / 2 - cellSize / 2;
-      const centerY = containerHeight / 2 - cellSize / 2;
       cells.length = 0;
+      
+      const centerX = 300; // Fixed center for 600px container
+      const centerY = 300;
+      
       const layout = layouts[limit];
       layout.forEach(({ ratio, x, y, lower }) => {
         const cell = document.createElement('div');
@@ -264,32 +442,50 @@
           cell.classList.add('lower-highlight');
           cell.dataset.lower = 'true';
         }
+        
+        // Use original positioning without scaling
         const yOffset = 200;
         const offset = { "11-limit": 240, "7-limit": 160, "5-limit": 140 }[limit] || 140;
-        cell.style.left = `${centerX + x - offset}px`;
-        cell.style.top = `${centerY + y - yOffset}px`;
+        
+        cell.style.left = `${centerX + x - offset - 30}px`; // -30 for half cell width
+        cell.style.top = `${centerY + y - yOffset - 30}px`; // -30 for half cell height
         cell.dataset.ratio = ratio;
+        
         const label = document.createElement('span');
         label.textContent = ratio;
         cell.appendChild(label);
-        cell.addEventListener('click', () => playNote(ratio, cell, lower));
+        
+        cell.addEventListener('click', (e) => {
+          e.preventDefault();
+          playNote(ratio, cell, lower);
+        });
+        
         diamond.appendChild(cell);
         cells.push(cell);
       });
     }
 
-    const limitToggle = document.querySelector('.limit-toggle');
+    // Initialize audio when user clicks the button
+    audioInitButton.addEventListener('click', () => {
+      if (initAudioContext()) {
+        renderDiamond("5-limit");
+      }
+    });
+
+    // Create limit toggle buttons
     Object.keys(layouts).forEach(limit => {
       const button = document.createElement('button');
       button.textContent = `${limit}`;
-      button.onclick = () => renderDiamond(limit);
+      button.onclick = (e) => {
+        e.preventDefault();
+        if (isAudioInitialized) {
+          renderDiamond(limit);
+        }
+      };
       limitToggle.appendChild(button);
     });
 
-    renderDiamond("5-limit");
-
-    let isShiftHeld = false;
-
+    // Keyboard event handlers
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Shift') {
         isShiftHeld = true;
@@ -299,65 +495,71 @@
     document.addEventListener('keyup', (e) => {
       if (e.key === 'Shift') {
         isShiftHeld = false;
+        
+        if (!isAudioInitialized) return;
 
         // Stop all sustained notes with a smooth fade-out
         activeNotes.forEach(({ osc, gain }, cell) => {
-          const now = audioCtx.currentTime;
-          gain.gain.cancelScheduledValues(now); // Cancel any scheduled changes
-          gain.gain.setValueAtTime(gain.gain.value, now); // Set the current gain value
-          gain.gain.linearRampToValueAtTime(0, now + 0.2); // Fade out over 200ms
-          osc.stop(now + 0.2); // Stop the oscillator after the fade-out
+          try {
+            const now = audioCtx.currentTime;
+            gain.gain.cancelScheduledValues(now);
+            gain.gain.setValueAtTime(gain.gain.value, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            osc.stop(now + 0.2);
 
-          // Clean up
-          cell.classList.remove('active');
-          if (cell.dataset.lower === 'true') {
-            cell.classList.add('lower-highlight'); // Restore lower-highlight if it was originally present
+            cell.classList.remove('active');
+            if (cell.dataset.lower === 'true') {
+              cell.classList.add('lower-highlight');
+            }
+          } catch (error) {
+            console.error('Error stopping note:', error);
           }
         });
 
-        activeNotes.clear(); // Clear the map
+        activeNotes.clear();
 
         // Reset the master gain smoothly
-        const resetTime = audioCtx.currentTime + delay + 0.2; // Wait for all fade-outs to complete
-        masterGain.gain.cancelScheduledValues(resetTime);
-        masterGain.gain.setValueAtTime(masterGain.gain.value, resetTime);
-        masterGain.gain.linearRampToValueAtTime(0.5, resetTime + 0.5); // Fade back to 0.5 over 500ms
+        try {
+          const resetTime = audioCtx.currentTime + 0.2;
+          masterGain.gain.cancelScheduledValues(resetTime);
+          masterGain.gain.setValueAtTime(masterGain.gain.value, resetTime);
+          masterGain.gain.linearRampToValueAtTime(0.5, resetTime + 0.1);
+        } catch (error) {
+          console.error('Error resetting gain:', error);
+        }
       }
     });
 
-    let isMouseDown = false; // Track whether the mouse is pressed
-    let lastActivatedCell = null; // Track the last activated cell to avoid re-triggering
-
-    // Start tracking mouse movement when the mouse is pressed
+    // Mouse event handlers
     document.addEventListener('mousedown', (e) => {
       isMouseDown = true;
-
-      // Activate the note under the mouse
       const cell = document.elementFromPoint(e.clientX, e.clientY);
       if (cell && cell.classList.contains('cell')) {
+        e.preventDefault();
         playNote(cell.dataset.ratio, cell, cell.dataset.lower === 'true');
         lastActivatedCell = cell;
       }
     });
 
-    // Activate notes as the mouse moves across the screen
     document.addEventListener('mousemove', (e) => {
       if (isMouseDown) {
         const cell = document.elementFromPoint(e.clientX, e.clientY);
         if (cell && cell.classList.contains('cell') && cell !== lastActivatedCell) {
+          e.preventDefault();
           playNote(cell.dataset.ratio, cell, cell.dataset.lower === 'true');
           lastActivatedCell = cell;
         }
       }
     });
 
-    // Stop tracking mouse movement when the mouse is released
     document.addEventListener('mouseup', () => {
       isMouseDown = false;
-      lastActivatedCell = null; // Reset the last activated cell
+      lastActivatedCell = null;
     });
 
+    // Touch event handlers
     document.addEventListener('touchstart', (e) => {
+      e.preventDefault();
       isMouseDown = true;
 
       const touch = e.touches[0];
@@ -366,9 +568,10 @@
         playNote(cell.dataset.ratio, cell, cell.dataset.lower === 'true');
         lastActivatedCell = cell;
       }
-    });
+    }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
+      e.preventDefault();
       if (isMouseDown) {
         const touch = e.touches[0];
         const cell = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -377,11 +580,40 @@
           lastActivatedCell = cell;
         }
       }
-    });
+    }, { passive: false });
 
-    document.addEventListener('touchend', () => {
+    document.addEventListener('touchend', (e) => {
+      e.preventDefault();
       isMouseDown = false;
       lastActivatedCell = null;
+    }, { passive: false });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      if (isAudioInitialized && diamond.dataset.limit) {
+        renderDiamond(diamond.dataset.limit);
+      }
+    });
+
+    // Handle visibility change (for mobile Safari background audio)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && isAudioInitialized) {
+        // Stop all notes when page becomes hidden (mobile Safari requirement)
+        activeNotes.forEach(({ osc, gain }, cell) => {
+          try {
+            const now = audioCtx.currentTime;
+            gain.gain.setValueAtTime(0, now);
+            osc.stop(now);
+            cell.classList.remove('active');
+            if (cell.dataset.lower === 'true') {
+              cell.classList.add('lower-highlight');
+            }
+          } catch (error) {
+            console.error('Error stopping note on visibility change:', error);
+          }
+        });
+        activeNotes.clear();
+      }
     });
   </script>
 </body>
