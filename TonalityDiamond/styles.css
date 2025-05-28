@@ -1,0 +1,107 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden; /* Prevent scrolling */
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  font-family: sans-serif;
+  background: #f4f4f4;
+  touch-action: none; /* Disable touch gestures */
+  caret-color: transparent; /* Prevent text cursor from appearing */
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+h1 {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 10px;
+  background: #f4f4f4;
+  z-index: 10; /* Ensure it stays above other elements */
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.instructions {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 15px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 15px;
+  font-size: 14px;
+  color: #666;
+  z-index: 9;
+  white-space: nowrap;
+}
+
+.diamond-container {
+  position: relative;
+  width: 600px;
+  height: 600px;
+}
+
+.limit-toggle {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px; /* Use consistent gap value */
+  margin-bottom: 10px;
+}
+
+.cell {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background: #fff;
+  border: 1px solid #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(45deg);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cell span {
+  text-align: center;
+  user-select: none;
+  transform: rotate(-45deg);
+}
+
+.cell.active {
+  background: yellow;
+}
+
+.cell.lower-highlight {
+  background: #ddd;
+}
+
+button {
+  user-select: none;
+  padding: 10px 15px;
+  font-size: 14px;
+}
