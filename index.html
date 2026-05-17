@@ -48,20 +48,10 @@
 
         <section id="targetPanel" class="target-panel" aria-label="Pitch targets">
           <h2 class="panel-heading">Pitch Targets</h2>
-          <div id="rootPanel" class="root-controls">
-            <label class="target-control" for="rootLabelInput">
-              <span>Root label</span>
-              <input id="rootLabelInput" type="text" value="Root">
-            </label>
-            <label class="target-control" for="rootHzInput">
-              <span>Root frequency Hz</span>
-              <input id="rootHzInput" type="number" value="261.63" min="1" step="0.01">
-            </label>
-          </div>
           <div class="target-controls">
             <label class="target-control" for="targetLabelInput">
               <span>Target label</span>
-              <input id="targetLabelInput" type="text" placeholder="C4, 1/1, target 1">
+              <input id="targetLabelInput" class="compact-input" type="text" maxlength="16" placeholder="C4">
             </label>
             <label class="target-control" for="targetInputMode">
               <span>Input mode</span>
@@ -73,7 +63,11 @@
             </label>
             <label class="target-control" for="targetValueInput">
               <span id="targetValueLabel">Target Hz</span>
-              <input id="targetValueInput" type="text" inputmode="decimal" placeholder="261.63">
+              <input id="targetValueInput" class="compact-input" type="text" inputmode="decimal" maxlength="16" placeholder="261.63">
+            </label>
+            <label id="rootHzControl" class="target-control is-hidden" for="rootHzInput">
+              <span>Root Hz</span>
+              <input id="rootHzInput" class="compact-input" type="number" value="261.63" min="1" step="0.01">
             </label>
             <button id="addTargetButton" type="button">Add Target</button>
             <button id="clearTargetsButton" type="button">Clear Targets</button>

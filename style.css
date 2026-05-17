@@ -226,24 +226,30 @@ input[type="text"]:focus-visible {
   gap: 0.75rem;
 }
 
-.root-controls {
-  align-items: end;
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-}
-
 .target-controls {
   align-items: end;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) repeat(2, minmax(0, 0.8fr));
 }
 
 .target-control {
   align-items: stretch;
   display: grid;
   gap: 0.25rem;
+  width: min(100%, 11rem);
+}
+
+.target-control:has(#targetInputMode) {
+  width: min(100%, 13rem);
+}
+
+.target-control.is-hidden {
+  display: none;
+}
+
+.compact-input {
+  max-width: 11rem;
 }
 
 .target-control span {
@@ -486,11 +492,8 @@ input[type="text"]:focus-visible {
   }
 
   .target-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .root-controls {
-    grid-template-columns: 1fr;
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .pitch-display {
@@ -516,11 +519,7 @@ input[type="text"]:focus-visible {
   }
 
   .target-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .root-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
   }
 
   .pitch-display {

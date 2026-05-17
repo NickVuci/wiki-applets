@@ -45,7 +45,7 @@ const waveformSelect = document.getElementById("waveformSelect");
 const minHzDisplay = document.getElementById("minHzDisplay");
 const maxHzDisplay = document.getElementById("maxHzDisplay");
 const rangeError = document.getElementById("rangeError");
-const rootLabelInput = document.getElementById("rootLabelInput");
+const rootHzControl = document.getElementById("rootHzControl");
 const rootHzInput = document.getElementById("rootHzInput");
 const targetLabelInput = document.getElementById("targetLabelInput");
 const targetInputMode = document.getElementById("targetInputMode");
@@ -85,9 +85,7 @@ minHzDisplay.addEventListener("blur", handleRangeBlur);
 maxHzDisplay.addEventListener("blur", handleRangeBlur);
 minHzDisplay.addEventListener("keydown", handleRangeKeydown);
 maxHzDisplay.addEventListener("keydown", handleRangeKeydown);
-rootLabelInput.addEventListener("blur", applyRootControls);
 rootHzInput.addEventListener("blur", applyRootControls);
-rootLabelInput.addEventListener("keydown", handleRootKeydown);
 rootHzInput.addEventListener("keydown", handleRootKeydown);
 targetInputMode.addEventListener("change", syncTargetInputMode);
 targetValueInput.addEventListener("keydown", handleTargetKeydown);
@@ -324,18 +322,18 @@ function addTarget() {
 }
 
 function buildTargetFromInputs() {
-  const rootApplied = applyRootControls();
-
-  if (!rootApplied) {
-    return null;
-  }
-
   const mode = targetInputMode.value;
   const label = targetLabelInput.value.trim();
   const rawValue = targetValueInput.value.trim();
 
   if (mode === "hz") {
     return buildHzTarget(label, rawValue);
+  }
+
+  const rootApplied = applyRootControls();
+
+  if (!rootApplied) {
+    return null;
   }
 
   if (mode === "cents") {
@@ -434,7 +432,6 @@ function clearTargets() {
 }
 
 function applyRootControls() {
-  const nextRootLabel = rootLabelInput.value.trim() || "Root";
   const nextRootHz = Number(rootHzInput.value);
   const validationMessage = validateRootFrequency(nextRootHz);
 
@@ -445,7 +442,7 @@ function applyRootControls() {
   }
 
   setRoot(state, {
-    label: nextRootLabel,
+    label: "Root",
     frequencyHz: nextRootHz
   });
   syncRootControls();
@@ -455,7 +452,6 @@ function applyRootControls() {
 }
 
 function syncRootControls() {
-  rootLabelInput.value = state.root.label;
   rootHzInput.value = String(state.root.frequencyHz);
 }
 
@@ -463,11 +459,15 @@ function syncTargetInputMode() {
   const mode = targetInputMode.value;
 
   if (mode === "hz") {
+    rootHzControl.classList.add("is-hidden");
+    targetError.textContent = "";
     targetValueLabel.textContent = "Target Hz";
     targetValueInput.placeholder = "261.63";
     targetValueInput.inputMode = "decimal";
     return;
   }
+
+  rootHzControl.classList.remove("is-hidden");
 
   if (mode === "cents") {
     targetValueLabel.textContent = "Cents above root";
