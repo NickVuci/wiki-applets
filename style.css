@@ -162,7 +162,8 @@ select {
 .readout {
   border-block: 1px solid var(--line);
   display: grid;
-  gap: 1rem;
+  column-gap: clamp(2rem, 8vw, 6rem);
+  row-gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   justify-self: center;
   margin-top: 0;
@@ -175,6 +176,7 @@ select {
 .readout-column {
   display: grid;
   gap: 0.45rem;
+  justify-items: center;
   min-width: 0;
 }
 
@@ -186,10 +188,13 @@ select {
 }
 
 .pitch-display {
+  display: block;
   font-size: 5.8rem;
   font-variant-numeric: tabular-nums;
   font-weight: 850;
   line-height: 0.95;
+  min-height: 1em;
+  white-space: nowrap;
 }
 
 .generated-display {

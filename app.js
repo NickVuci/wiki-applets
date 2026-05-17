@@ -119,7 +119,7 @@ function updateDetectedPitch({ frequency, clarity }) {
 
   if (!isUsablePitch(frequency, clarity)) {
     lostPitchFrames += 1;
-    pitchDisplay.textContent = "-- Hz";
+    pitchDisplay.textContent = formatHzDisplay(null);
     statusDisplay.textContent = "No clear pitch detected";
     meterLabel.textContent = "Detected: No clear pitch";
     pitchMarker.classList.add("is-hidden");
@@ -134,7 +134,7 @@ function updateDetectedPitch({ frequency, clarity }) {
   lostPitchFrames = 0;
   smoothedPitch = smoothPitch(frequency);
 
-  const displayedPitch = `${smoothedPitch.toFixed(2)} Hz`;
+  const displayedPitch = formatHzDisplay(smoothedPitch);
   pitchDisplay.textContent = displayedPitch;
   statusDisplay.textContent = "Listening...";
   meterLabel.textContent = `Detected: ${displayedPitch}`;
@@ -204,7 +204,7 @@ function syncToneDisplay(toneState) {
     return;
   }
 
-  const displayedPitch = `${toneState.frequency.toFixed(2)} Hz`;
+  const displayedPitch = formatHzDisplay(toneState.frequency);
   const waveformLabel = waveformSelect.options[waveformSelect.selectedIndex].text;
 
   generatedPitchDisplay.textContent = displayedPitch;
@@ -223,7 +223,7 @@ function applyInternalToneState(toneState) {
   if (!toneState.isPlaying || toneState.frequency === null) {
     smoothedPitch = null;
     lostPitchFrames = 0;
-    pitchDisplay.textContent = "-- Hz";
+    pitchDisplay.textContent = formatHzDisplay(null);
     clarityDisplay.textContent = "Clarity: --";
     statusDisplay.textContent = "Internal mode: click the pitch bar";
     meterLabel.textContent = "Detected: No internal tone";
@@ -239,7 +239,7 @@ function applyInternalToneState(toneState) {
 }
 
 function resetToneDisplays() {
-  generatedPitchDisplay.textContent = "-- Hz";
+  generatedPitchDisplay.textContent = formatHzDisplay(null);
   toneStatusDisplay.textContent = "Tone: Off";
   toneMeterLabel.textContent = "Generated: Off";
   toneMarker.style.left = "0%";
@@ -248,7 +248,7 @@ function resetToneDisplays() {
 }
 
 function resetMicDisplays(statusText = "Idle") {
-  pitchDisplay.textContent = "-- Hz";
+  pitchDisplay.textContent = formatHzDisplay(null);
   clarityDisplay.textContent = "Clarity: --";
   statusDisplay.textContent = statusText;
   meterLabel.textContent = "Detected: No clear pitch";
@@ -373,6 +373,14 @@ function getOctaveFrequencies() {
 
 function formatFrequencyLabel(frequency) {
   return Number.isInteger(frequency) ? String(frequency) : frequency.toFixed(2);
+}
+
+function formatHzDisplay(frequency) {
+  if (!Number.isFinite(frequency)) {
+    return "--\u00A0Hz";
+  }
+
+  return `${frequency.toFixed(2)}\u00A0Hz`;
 }
 
 function meterPositionToFrequency(position) {
