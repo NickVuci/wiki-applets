@@ -6,6 +6,32 @@ import {
   setWaveform,
   stopTone
 } from "./tone-generator.js";
+import {
+  addManualTarget,
+  createAppState,
+  resetDisplayRange as resetStateDisplayRange,
+  resetLostPitchFrames,
+  resetMicTrackingState,
+  setActiveAnalysisMode,
+  setCurrentToneState,
+  setDisplayRange,
+  setSmoothedPitch,
+  setToneDragging,
+  clearTargets as clearStateTargets,
+  incrementLostPitchFrames
+} from "./state/app-state.js";
+import {
+  formatClarity,
+  formatHzDisplay,
+  normalizedPositionToFrequency,
+  validateDisplayRange,
+  validateTargetFrequency
+} from "./pitch/pitch-mapping.js";
+import {
+  renderDetectedMarker,
+  renderRangeDependentUI,
+  renderToneMarker
+} from "./views/bar-view.js";
 
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
@@ -34,35 +60,18 @@ const toneMarker = document.getElementById("toneMarker");
 const meterLabel = document.getElementById("meterLabel");
 const toneMeterLabel = document.getElementById("toneMeterLabel");
 
-const DEFAULT_RANGE = {
-  minHz: 50,
-  maxHz: 2000
-};
 const MIN_CLARITY = 0.9;
 const DETECTION_MIN_FREQUENCY = 50;
 const DETECTION_MAX_FREQUENCY = 4000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
-const MIN_VISIBLE_RANGE_OCTAVES = 0.25;
-const SPECTRUM_STOPS = [
-  { color: "#f44336", offset: 0 },
-  { color: "#ff9800", offset: 0.16 },
-  { color: "#ffeb3b", offset: 0.32 },
-  { color: "#4caf50", offset: 0.48 },
-  { color: "#00bcd4", offset: 0.64 },
-  { color: "#3f51b5", offset: 0.8 },
-  { color: "#9c27b0", offset: 0.92 },
-  { color: "#f44336", offset: 1 }
-];
-
-let smoothedPitch = null;
-let lostPitchFrames = 0;
-let isDraggingTone = false;
-let activeAnalysisMode = null;
-let displayRange = { ...DEFAULT_RANGE };
-let currentToneState = getToneState();
-let pitchTargets = [];
-let nextTargetId = 1;
+const dom = {
+  pitchMeter,
+  octaveScale,
+  pitchMarker,
+  toneMarker
+};
+const state = createAppState(getToneState());
 
 startButton.addEventListener("click", startAnalysis);
 stopButton.addEventListener("click", () => stopAnalysis());
@@ -81,7 +90,7 @@ pitchMeter.addEventListener("pointercancel", endToneDrag);
 resetMicDisplays();
 resetToneDisplays();
 syncRangeInputs();
-renderRangeDependentUI();
+renderRangeDependentUI(dom, state);
 updateAnalysisModeControls();
 
 async function startAnalysis() {
@@ -102,12 +111,12 @@ async function startMicrophoneAnalysis() {
     await resumeIfNeeded();
 
     statusDisplay.textContent = "Listening...";
-    activeAnalysisMode = "microphone";
+    setActiveAnalysisMode(state, "microphone");
     stopButton.disabled = false;
     startButton.disabled = true;
     analysisModeSelect.disabled = true;
-    currentToneState = getToneState();
-    syncToneDisplay(currentToneState);
+    setCurrentToneState(state, getToneState());
+    syncToneDisplay(state.currentToneState);
   } catch (error) {
     console.error(error);
     await stopAnalysis("Microphone access denied or unavailable");
@@ -115,9 +124,8 @@ async function startMicrophoneAnalysis() {
 }
 
 function startInternalAnalysis() {
-  activeAnalysisMode = "internal";
-  smoothedPitch = null;
-  lostPitchFrames = 0;
+  setActiveAnalysisMode(state, "internal");
+  resetMicTrackingState(state);
   startButton.disabled = true;
   stopButton.disabled = false;
   analysisModeSelect.disabled = true;
@@ -128,9 +136,8 @@ function startInternalAnalysis() {
 async function stopAnalysis(statusText = "Idle") {
   await stopAnalyzer();
 
-  activeAnalysisMode = null;
-  smoothedPitch = null;
-  lostPitchFrames = 0;
+  setActiveAnalysisMode(state, null);
+  resetMicTrackingState(state);
 
   resetMicDisplays(statusText);
   startButton.disabled = false;
@@ -143,38 +150,38 @@ function updateDetectedPitch({ frequency, clarity }) {
   clarityDisplay.textContent = `Clarity: ${formatClarity(clarity)}`;
 
   if (!isUsablePitch(frequency, clarity)) {
-    lostPitchFrames += 1;
+    incrementLostPitchFrames(state);
     pitchDisplay.textContent = formatHzDisplay(null);
     statusDisplay.textContent = "No clear pitch detected";
     meterLabel.textContent = "Detected: No clear pitch";
     pitchMarker.classList.add("is-hidden");
 
-    if (lostPitchFrames >= LOST_PITCH_FRAMES_BEFORE_RESET) {
-      smoothedPitch = null;
+    if (state.lostPitchFrames >= LOST_PITCH_FRAMES_BEFORE_RESET) {
+      setSmoothedPitch(state, null);
     }
 
     return;
   }
 
-  lostPitchFrames = 0;
-  smoothedPitch = smoothPitch(frequency);
+  resetLostPitchFrames(state);
+  setSmoothedPitch(state, smoothPitch(frequency));
 
-  const displayedPitch = formatHzDisplay(smoothedPitch);
+  const displayedPitch = formatHzDisplay(state.smoothedPitch);
   pitchDisplay.textContent = displayedPitch;
   statusDisplay.textContent = "Listening...";
   meterLabel.textContent = `Detected: ${displayedPitch}`;
-  updateDetectedMeter(smoothedPitch);
+  updateDetectedMeter(state.smoothedPitch);
 }
 
 async function startToneDrag(event) {
   event.preventDefault();
-  isDraggingTone = true;
+  setToneDragging(state, true);
   pitchMeter.setPointerCapture(event.pointerId);
   await setToneFromPointer(event);
 }
 
 async function updateToneDrag(event) {
-  if (!isDraggingTone) {
+  if (!state.isDraggingTone) {
     return;
   }
 
@@ -183,11 +190,11 @@ async function updateToneDrag(event) {
 }
 
 function endToneDrag(event) {
-  if (!isDraggingTone) {
+  if (!state.isDraggingTone) {
     return;
   }
 
-  isDraggingTone = false;
+  setToneDragging(state, false);
 
   if (pitchMeter.hasPointerCapture(event.pointerId)) {
     pitchMeter.releasePointerCapture(event.pointerId);
@@ -199,7 +206,7 @@ async function setToneFromPointer(event) {
   const frequency = meterPositionToFrequency(position);
   const toneState = await setToneFrequency(frequency);
 
-  currentToneState = toneState;
+  setCurrentToneState(state, toneState);
   syncToneDisplay(toneState);
   applyInternalToneState(toneState);
 }
@@ -214,14 +221,14 @@ function pointerToMeterPosition(event) {
 function updateWaveform() {
   const toneState = setWaveform(waveformSelect.value);
 
-  currentToneState = toneState;
+  setCurrentToneState(state, toneState);
   syncToneDisplay(toneState);
 }
 
 async function stopGeneratedTone() {
   const toneState = await stopTone();
 
-  currentToneState = toneState;
+  setCurrentToneState(state, toneState);
   syncToneDisplay(toneState);
   applyInternalToneState(toneState);
 }
@@ -238,18 +245,17 @@ function syncToneDisplay(toneState) {
   generatedPitchDisplay.textContent = displayedPitch;
   toneStatusDisplay.textContent = `Tone: ${waveformLabel} (${toneState.audioState})`;
   toneMeterLabel.textContent = `Generated: ${displayedPitch}`;
-  renderToneMarker();
+  renderToneMarker(dom, state);
   stopToneButton.disabled = false;
 }
 
 function applyInternalToneState(toneState) {
-  if (activeAnalysisMode !== "internal") {
+  if (state.activeAnalysisMode !== "internal") {
     return;
   }
 
   if (!toneState.isPlaying || toneState.frequency === null) {
-    smoothedPitch = null;
-    lostPitchFrames = 0;
+    resetMicTrackingState(state);
     pitchDisplay.textContent = formatHzDisplay(null);
     clarityDisplay.textContent = "Clarity: --";
     statusDisplay.textContent = "Internal mode: click the pitch bar";
@@ -269,7 +275,7 @@ function resetToneDisplays() {
   generatedPitchDisplay.textContent = formatHzDisplay(null);
   toneStatusDisplay.textContent = "Tone: Off";
   toneMeterLabel.textContent = "Generated: Off";
-  renderToneMarker();
+  renderToneMarker(dom, state);
   stopToneButton.disabled = true;
 }
 
@@ -278,7 +284,7 @@ function resetMicDisplays(statusText = "Idle") {
   clarityDisplay.textContent = "Clarity: --";
   statusDisplay.textContent = statusText;
   meterLabel.textContent = "Detected: No clear pitch";
-  renderDetectedMarker();
+  renderDetectedMarker(dom, state);
 }
 
 function setControlsForStarting() {
@@ -287,7 +293,7 @@ function setControlsForStarting() {
 }
 
 function updateAnalysisModeControls() {
-  if (activeAnalysisMode !== null) {
+  if (state.activeAnalysisMode !== null) {
     return;
   }
 
@@ -300,32 +306,24 @@ function updateAnalysisModeControls() {
 function addHzTarget() {
   const label = targetLabelInput.value.trim();
   const frequencyHz = Number(targetHzInput.value);
+  const validationMessage = validateTargetFrequency(frequencyHz);
 
-  if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
-    targetError.textContent = "Enter a target frequency greater than 0 Hz.";
+  if (validationMessage) {
+    targetError.textContent = validationMessage;
     return;
   }
 
-  const target = {
-    id: `target-${String(nextTargetId).padStart(3, "0")}`,
-    label: label || `Target ${nextTargetId}`,
-    frequencyHz,
-    source: "manual-hz",
-    colorClass: "target-marker"
-  };
-
-  nextTargetId += 1;
-  pitchTargets = [...pitchTargets, target];
+  addManualTarget(state, label, frequencyHz);
   targetError.textContent = "";
   targetLabelInput.value = "";
   targetHzInput.value = "";
-  renderRangeDependentUI();
+  renderRangeDependentUI(dom, state);
 }
 
 function clearTargets() {
-  pitchTargets = [];
+  clearStateTargets(state);
   targetError.textContent = "";
-  renderRangeDependentUI();
+  renderRangeDependentUI(dom, state);
 }
 
 function isUsablePitch(frequency, clarity) {
@@ -338,173 +336,19 @@ function isUsablePitch(frequency, clarity) {
 }
 
 function smoothPitch(frequency) {
-  if (smoothedPitch === null) {
+  if (state.smoothedPitch === null) {
     return frequency;
   }
 
-  return smoothedPitch * (1 - SMOOTHING) + frequency * SMOOTHING;
+  return state.smoothedPitch * (1 - SMOOTHING) + frequency * SMOOTHING;
 }
 
 function updateDetectedMeter(frequency) {
-  renderDetectedMarker(frequency);
-}
-
-function buildOctaveSpectrumGradient() {
-  const gradientStops = [];
-  const samples = 96;
-
-  for (let index = 0; index <= samples; index += 1) {
-    const position = index / samples;
-    const frequency = normalizedPositionToFrequency(position);
-    const color = getSpectrumColorForFrequency(frequency);
-
-    gradientStops.push(`${color} ${(position * 100).toFixed(3)}%`);
-  }
-
-  return `linear-gradient(90deg, ${gradientStops.join(", ")})`;
-}
-
-function renderOctaveScale() {
-  const octaveFrequencies = getVisibleOctaveFrequencies();
-
-  octaveScale.replaceChildren();
-
-  octaveFrequencies.forEach((frequency, index) => {
-    const label = document.createElement("span");
-    const position = frequencyToNormalizedPosition(frequency);
-
-    label.className = "meter-scale-label";
-    label.textContent = `${formatFrequencyLabel(frequency)} Hz`;
-    label.style.left = `${position * 100}%`;
-
-    if (index === 0) {
-      label.classList.add("is-edge-left");
-    }
-
-    if (index === octaveFrequencies.length - 1) {
-      label.classList.add("is-edge-right");
-    }
-
-    if (index % 2 === 1) {
-      label.classList.add("is-mobile-hidden");
-    }
-
-    octaveScale.append(label);
-  });
-}
-
-function getOctaveStartFrequencies() {
-  const octaves = [];
-  let frequency = getFirstOctaveBoundary(displayRange.minHz);
-
-  while (frequency <= displayRange.maxHz) {
-    octaves.push(frequency);
-    frequency *= 2;
-  }
-
-  return octaves;
-}
-
-function getVisibleOctaveFrequencies() {
-  const octaves = [];
-  let frequency = getFirstOctaveBoundary(displayRange.minHz);
-
-  while (frequency < displayRange.minHz) {
-    frequency *= 2;
-  }
-
-  while (frequency <= displayRange.maxHz) {
-    octaves.push(frequency);
-    frequency *= 2;
-  }
-
-  return octaves;
-}
-
-function getFirstOctaveBoundary(minFrequency) {
-  const octaveExponent = Math.floor(Math.log2(minFrequency / DEFAULT_RANGE.minHz));
-  return DEFAULT_RANGE.minHz * 2 ** octaveExponent;
-}
-
-function formatFrequencyLabel(frequency) {
-  return Number.isInteger(frequency) ? String(frequency) : frequency.toFixed(2);
-}
-
-function formatHzDisplay(frequency) {
-  if (!Number.isFinite(frequency)) {
-    return "--\u00A0Hz";
-  }
-
-  return `${frequency.toFixed(2)}\u00A0Hz`;
+  renderDetectedMarker(dom, state, frequency);
 }
 
 function meterPositionToFrequency(position) {
-  return normalizedPositionToFrequency(position);
-}
-
-function frequencyToNormalizedPosition(frequencyHz, range = displayRange) {
-  if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
-    return null;
-  }
-
-  const minLog = Math.log2(range.minHz);
-  const maxLog = Math.log2(range.maxHz);
-  const valueLog = Math.log2(frequencyHz);
-  const normalized = (valueLog - minLog) / (maxLog - minLog);
-
-  return Math.max(0, Math.min(1, normalized));
-}
-
-function normalizedPositionToFrequency(position, range = displayRange) {
-  const minLog = Math.log2(range.minHz);
-  const maxLog = Math.log2(range.maxHz);
-  const valueLog = minLog + position * (maxLog - minLog);
-
-  return 2 ** valueLog;
-}
-
-function getSpectrumColorForFrequency(frequency) {
-  const octaveBase = getFirstOctaveBoundary(frequency);
-  const octaveOffset = Math.log2(frequency / octaveBase);
-  const clampedOffset = Math.max(0, Math.min(1, octaveOffset));
-
-  return interpolateSpectrumColor(clampedOffset);
-}
-
-function interpolateSpectrumColor(offset) {
-  for (let index = 0; index < SPECTRUM_STOPS.length - 1; index += 1) {
-    const currentStop = SPECTRUM_STOPS[index];
-    const nextStop = SPECTRUM_STOPS[index + 1];
-
-    if (offset < currentStop.offset || offset > nextStop.offset) {
-      continue;
-    }
-
-    const localOffset = (offset - currentStop.offset) / (nextStop.offset - currentStop.offset);
-    return interpolateHexColor(currentStop.color, nextStop.color, localOffset);
-  }
-
-  return SPECTRUM_STOPS[SPECTRUM_STOPS.length - 1].color;
-}
-
-function interpolateHexColor(startColor, endColor, offset) {
-  const start = hexToRgb(startColor);
-  const end = hexToRgb(endColor);
-  const red = Math.round(start.red + (end.red - start.red) * offset);
-  const green = Math.round(start.green + (end.green - start.green) * offset);
-  const blue = Math.round(start.blue + (end.blue - start.blue) * offset);
-
-  return `rgb(${red} ${green} ${blue})`;
-}
-
-function hexToRgb(hexColor) {
-  const hex = hexColor.replace("#", "");
-
-  return {
-    red: Number.parseInt(hex.slice(0, 2), 16),
-    green: Number.parseInt(hex.slice(2, 4), 16),
-    blue: Number.parseInt(hex.slice(4, 6), 16)
-  };
+  return normalizedPositionToFrequency(position, state.displayRange);
 }
 
 function applyDisplayRange() {
@@ -517,118 +361,22 @@ function applyDisplayRange() {
     return;
   }
 
-  displayRange = {
+  setDisplayRange(state, {
     minHz: nextMin,
     maxHz: nextMax
-  };
+  });
   rangeError.textContent = "";
-  renderRangeDependentUI();
+  renderRangeDependentUI(dom, state);
 }
 
 function resetDisplayRange() {
-  displayRange = { ...DEFAULT_RANGE };
+  resetStateDisplayRange(state);
   rangeError.textContent = "";
   syncRangeInputs();
-  renderRangeDependentUI();
-}
-
-function validateDisplayRange(minHz, maxHz) {
-  if (!Number.isFinite(minHz) || !Number.isFinite(maxHz)) {
-    return "Enter valid numeric minimum and maximum Hz values.";
-  }
-
-  if (minHz <= 0 || maxHz <= 0) {
-    return "Minimum and maximum Hz must both be greater than 0.";
-  }
-
-  if (maxHz <= minHz) {
-    return "Maximum Hz must be greater than minimum Hz.";
-  }
-
-  if (Math.log2(maxHz / minHz) < MIN_VISIBLE_RANGE_OCTAVES) {
-    return "Choose a wider range so the display stays readable.";
-  }
-
-  return "";
+  renderRangeDependentUI(dom, state);
 }
 
 function syncRangeInputs() {
-  minHzInput.value = String(displayRange.minHz);
-  maxHzInput.value = String(displayRange.maxHz);
-}
-
-function renderRangeDependentUI() {
-  renderMeterBackground();
-  renderOctaveScale();
-  renderTargetMarkers();
-  renderDetectedMarker();
-  renderToneMarker();
-}
-
-function renderMeterBackground() {
-  pitchMeter.style.background = buildOctaveSpectrumGradient();
-}
-
-function renderDetectedMarker(frequency = smoothedPitch) {
-  renderMarker(pitchMarker, frequency);
-}
-
-function renderToneMarker() {
-  renderMarker(toneMarker, currentToneState.frequency);
-}
-
-function renderTargetMarkers() {
-  const existingMarkers = pitchMeter.querySelectorAll(".target-marker");
-
-  existingMarkers.forEach((marker) => marker.remove());
-
-  pitchTargets.forEach((target) => {
-    if (!isFrequencyVisible(target.frequencyHz)) {
-      return;
-    }
-
-    const marker = document.createElement("div");
-    const label = document.createElement("span");
-    const frequency = document.createElement("span");
-    const position = frequencyToNormalizedPosition(target.frequencyHz);
-
-    marker.className = "target-marker";
-    marker.style.left = `${position * 100}%`;
-    marker.title = `${target.label}: ${formatHzDisplay(target.frequencyHz).replace("\u00A0", " ")}`;
-    label.className = "target-marker-label";
-    label.textContent = target.label;
-    frequency.className = "target-marker-frequency";
-    frequency.textContent = formatHzDisplay(target.frequencyHz);
-    marker.append(label, frequency);
-    pitchMeter.append(marker);
-  });
-}
-
-function renderMarker(markerElement, frequency) {
-  if (!isFrequencyVisible(frequency)) {
-    markerElement.style.left = "0%";
-    markerElement.classList.add("is-hidden");
-    return;
-  }
-
-  const position = frequencyToNormalizedPosition(frequency);
-
-  markerElement.style.left = `${position * 100}%`;
-  markerElement.classList.remove("is-hidden");
-}
-
-function isFrequencyVisible(frequency) {
-  return (
-    Number.isFinite(frequency) &&
-    frequency >= displayRange.minHz &&
-    frequency <= displayRange.maxHz
-  );
-}
-
-function formatClarity(clarity) {
-  if (!Number.isFinite(clarity)) {
-    return "--";
-  }
-
-  return clarity.toFixed(3);
+  minHzInput.value = String(state.displayRange.minHz);
+  maxHzInput.value = String(state.displayRange.maxHz);
 }
