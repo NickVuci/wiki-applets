@@ -12,6 +12,7 @@
   --surface: #ffffff;
   --surface-soft: #f4ebe8;
   --focus-ring: rgb(79 143 206 / 48%);
+  --marker-text: #14201c;
 }
 
 :root[data-theme="dark"] {
@@ -27,6 +28,7 @@
   --surface: #16201d;
   --surface-soft: #2b1d1a;
   --focus-ring: rgb(122 198 255 / 48%);
+  --marker-text: #ffffff;
 }
 
 * {
@@ -423,7 +425,7 @@ input[type="text"]:focus-visible {
   background: transparent;
   border: 0;
   border-radius: 0;
-  color: #ffffff;
+  color: var(--marker-text);
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
@@ -441,7 +443,7 @@ input[type="text"]:focus-visible {
   background: transparent;
   border: 0;
   border-radius: 0;
-  color: #ffffff;
+  color: var(--marker-text);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
