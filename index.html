@@ -66,6 +66,23 @@
           </div>
         </section>
 
+        <section id="targetPanel" class="target-panel" aria-label="Pitch targets">
+          <h2 class="panel-heading">Pitch Targets</h2>
+          <div class="target-controls">
+            <label class="target-control" for="targetLabelInput">
+              <span>Target label</span>
+              <input id="targetLabelInput" type="text" placeholder="C4, 1/1, target 1">
+            </label>
+            <label class="target-control" for="targetHzInput">
+              <span>Target Hz</span>
+              <input id="targetHzInput" type="number" min="1" step="0.01" placeholder="261.63">
+            </label>
+            <button id="addHzTargetButton" type="button">Add Hz Target</button>
+            <button id="clearTargetsButton" type="button">Clear Targets</button>
+          </div>
+          <div id="targetError" class="target-error" aria-live="polite"></div>
+        </section>
+
         <section class="meter-section" aria-label="Pitch meter">
           <div id="pitchMeter" class="pitch-meter">
             <div id="pitchMarker" class="pitch-marker is-hidden"></div>

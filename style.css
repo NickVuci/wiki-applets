@@ -218,6 +218,44 @@ input[type="number"]:focus-visible {
   width: 100%;
 }
 
+.panel-heading {
+  font-size: 1rem;
+  font-weight: 850;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.target-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.target-controls {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) repeat(2, minmax(0, 0.8fr));
+}
+
+.target-control {
+  align-items: stretch;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.target-control span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.target-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-height: 1.2rem;
+}
+
 .readout-column {
   display: grid;
   gap: 0.45rem;
@@ -274,7 +312,7 @@ input[type="number"]:focus-visible {
   box-shadow: inset 0 0 0 1px rgb(20 32 28 / 8%);
   cursor: crosshair;
   height: clamp(32px, 7vh, 64px);
-  overflow: hidden;
+  overflow: visible;
   position: relative;
   touch-action: none;
   width: 100%;
@@ -329,7 +367,8 @@ input[type="number"]:focus-visible {
 }
 
 .pitch-marker,
-.tone-marker {
+.tone-marker,
+.target-marker {
   background: #ffffff;
   border: 3px solid var(--text);
   border-radius: 999px;
@@ -350,8 +389,37 @@ input[type="number"]:focus-visible {
   z-index: 2;
 }
 
+.target-marker {
+  background: rgb(20 32 28 / 88%);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+  opacity: 0.8;
+  width: 2px;
+  z-index: 1;
+}
+
+.target-marker-label {
+  background: rgb(244 247 245 / 92%);
+  border: 1px solid rgb(20 32 28 / 10%);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  left: 50%;
+  line-height: 1;
+  padding: 0.24rem 0.4rem;
+  position: absolute;
+  top: -1.75rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 .pitch-marker.is-hidden,
-.tone-marker.is-hidden {
+.tone-marker.is-hidden,
+.target-marker.is-hidden {
   opacity: 0;
 }
 
@@ -373,6 +441,10 @@ input[type="number"]:focus-visible {
   }
 
   .range-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .target-controls {
     grid-template-columns: 1fr;
   }
 
@@ -403,6 +475,10 @@ input[type="number"]:focus-visible {
   }
 
   .range-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .target-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

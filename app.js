@@ -17,6 +17,11 @@ const maxHzInput = document.getElementById("maxHzInput");
 const applyRangeButton = document.getElementById("applyRangeButton");
 const resetRangeButton = document.getElementById("resetRangeButton");
 const rangeError = document.getElementById("rangeError");
+const targetLabelInput = document.getElementById("targetLabelInput");
+const targetHzInput = document.getElementById("targetHzInput");
+const addHzTargetButton = document.getElementById("addHzTargetButton");
+const clearTargetsButton = document.getElementById("clearTargetsButton");
+const targetError = document.getElementById("targetError");
 const pitchDisplay = document.getElementById("pitchDisplay");
 const generatedPitchDisplay = document.getElementById("generatedPitchDisplay");
 const clarityDisplay = document.getElementById("clarityDisplay");
@@ -54,6 +59,8 @@ let isDraggingTone = false;
 let activeAnalysisMode = null;
 let displayRange = { ...DEFAULT_RANGE };
 let currentToneState = getToneState();
+let pitchTargets = [];
+let nextTargetId = 1;
 
 startButton.addEventListener("click", startAnalysis);
 stopButton.addEventListener("click", () => stopAnalysis());
@@ -62,6 +69,8 @@ analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
 waveformSelect.addEventListener("change", updateWaveform);
 applyRangeButton.addEventListener("click", applyDisplayRange);
 resetRangeButton.addEventListener("click", resetDisplayRange);
+addHzTargetButton.addEventListener("click", addHzTarget);
+clearTargetsButton.addEventListener("click", clearTargets);
 pitchMeter.addEventListener("pointerdown", startToneDrag);
 pitchMeter.addEventListener("pointermove", updateToneDrag);
 pitchMeter.addEventListener("pointerup", endToneDrag);
@@ -284,6 +293,37 @@ function updateAnalysisModeControls() {
 
   startButton.textContent = isInternalMode ? "Start Internal" : "Start Analysis";
   stopButton.textContent = isInternalMode ? "Stop Internal" : "Stop Analysis";
+}
+
+function addHzTarget() {
+  const label = targetLabelInput.value.trim();
+  const frequencyHz = Number(targetHzInput.value);
+
+  if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
+    targetError.textContent = "Enter a target frequency greater than 0 Hz.";
+    return;
+  }
+
+  const target = {
+    id: `target-${String(nextTargetId).padStart(3, "0")}`,
+    label: label || `Target ${nextTargetId}`,
+    frequencyHz,
+    source: "manual-hz",
+    colorClass: "target-marker"
+  };
+
+  nextTargetId += 1;
+  pitchTargets = [...pitchTargets, target];
+  targetError.textContent = "";
+  targetLabelInput.value = "";
+  targetHzInput.value = "";
+  renderRangeDependentUI();
+}
+
+function clearTargets() {
+  pitchTargets = [];
+  targetError.textContent = "";
+  renderRangeDependentUI();
 }
 
 function isUsablePitch(frequency, clarity) {
@@ -518,6 +558,7 @@ function syncRangeInputs() {
 function renderRangeDependentUI() {
   renderMeterBackground();
   renderOctaveScale();
+  renderTargetMarkers();
   renderDetectedMarker();
   renderToneMarker();
 }
@@ -532,6 +573,30 @@ function renderDetectedMarker(frequency = smoothedPitch) {
 
 function renderToneMarker() {
   renderMarker(toneMarker, currentToneState.frequency);
+}
+
+function renderTargetMarkers() {
+  const existingMarkers = pitchMeter.querySelectorAll(".target-marker");
+
+  existingMarkers.forEach((marker) => marker.remove());
+
+  pitchTargets.forEach((target) => {
+    if (!isFrequencyVisible(target.frequencyHz)) {
+      return;
+    }
+
+    const marker = document.createElement("div");
+    const label = document.createElement("span");
+    const position = frequencyToNormalizedPosition(target.frequencyHz);
+
+    marker.className = "target-marker";
+    marker.style.left = `${position * 100}%`;
+    marker.title = `${target.label}: ${formatHzDisplay(target.frequencyHz).replace("\u00A0", " ")}`;
+    label.className = "target-marker-label";
+    label.textContent = target.label;
+    marker.append(label);
+    pitchMeter.append(marker);
+  });
 }
 
 function renderMarker(markerElement, frequency) {
