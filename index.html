@@ -10,12 +10,6 @@
   <body>
     <main class="app-shell">
       <section class="tracker-card" aria-labelledby="appTitle">
-        <header class="app-header">
-          <p class="eyebrow">Monophonic tuner MVP</p>
-          <h1 id="appTitle">Microphone Pitch Tracker</h1>
-          <p class="instructions">Sing or play one note at a time into your microphone.</p>
-        </header>
-
         <div class="controls" aria-label="Audio controls">
           <button id="startButton" type="button">Start Analysis</button>
           <button id="stopButton" type="button" disabled>Stop Analysis</button>
@@ -36,6 +30,7 @@
             </select>
           </label>
           <button id="stopToneButton" type="button" disabled>Stop Tone</button>
+          <button id="themeToggleButton" type="button">Dark Mode</button>
         </div>
 
         <section id="rangePanel" class="range-panel" aria-label="Display range controls">
@@ -89,10 +84,6 @@
             <div id="toneMarker" class="tone-marker is-hidden"></div>
           </div>
           <div id="octaveScale" class="meter-scale" aria-hidden="true"></div>
-          <div class="meter-labels">
-            <span id="meterLabel">Detected: No clear pitch</span>
-            <span id="toneMeterLabel">Generated: Off</span>
-          </div>
         </section>
       </section>
     </main>

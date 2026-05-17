@@ -9,6 +9,24 @@
   --danger: #9f3f37;
   --danger-hover: #7f2f29;
   --meter-spectrum: linear-gradient(90deg, #f44336 0%, #ff9800 16%, #ffeb3b 32%, #4caf50 48%, #00bcd4 64%, #3f51b5 80%, #9c27b0 92%, #f44336 100%);
+  --surface: #ffffff;
+  --surface-soft: #f4ebe8;
+  --focus-ring: rgb(79 143 206 / 48%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0f1513;
+  --text: #edf5f1;
+  --muted: #a9bab3;
+  --line: #24312d;
+  --primary: #52b59b;
+  --primary-hover: #68c8af;
+  --danger: #e37f73;
+  --danger-hover: #f1978b;
+  --surface: #16201d;
+  --surface-soft: #2b1d1a;
+  --focus-ring: rgb(122 198 255 / 48%);
 }
 
 * {
@@ -36,7 +54,7 @@ button {
 
 button:focus-visible,
 select:focus-visible {
-  outline: 3px solid rgb(79 143 206 / 48%);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -59,50 +77,19 @@ button:disabled {
 
 .tracker-card {
   display: grid;
-  gap: clamp(1.25rem, 4vh, 2.5rem);
-  grid-template-rows: auto auto auto 1fr;
+  gap: clamp(1rem, 3vh, 1.8rem);
   max-width: 1120px;
-  padding: clamp(1rem, 4vw, 2.5rem) 0;
+  padding: clamp(0.75rem, 3vw, 1.75rem) 0;
   width: 100%;
-}
-
-.app-header {
-  display: grid;
-  gap: 0.55rem;
-  justify-items: center;
-  text-align: center;
-}
-
-.eyebrow {
-  color: var(--primary);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  margin: 0;
-  text-transform: uppercase;
-}
-
-h1 {
-  font-size: 3.35rem;
-  line-height: 1;
-  margin: 0;
-}
-
-.instructions {
-  color: var(--muted);
-  font-size: 1.02rem;
-  line-height: 1.5;
-  margin: 0;
-  max-width: 34rem;
 }
 
 .controls {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   justify-self: center;
   margin-top: 0;
-  max-width: 940px;
+  max-width: 1120px;
   width: 100%;
 }
 
@@ -128,8 +115,18 @@ h1 {
 }
 
 #stopToneButton {
-  background: #f4ebe8;
+  background: var(--surface-soft);
   color: var(--danger);
+}
+
+#themeToggleButton {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+#themeToggleButton:hover:not(:disabled) {
+  background: var(--line);
 }
 
 .source-control,
@@ -148,7 +145,7 @@ h1 {
 
 select {
   appearance: none;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--text);
@@ -161,7 +158,7 @@ select {
 
 input[type="number"] {
   appearance: textfield;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--text);
@@ -173,7 +170,24 @@ input[type="number"] {
 }
 
 input[type="number"]:focus-visible {
-  outline: 3px solid rgb(79 143 206 / 48%);
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+input[type="text"] {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  padding: 0.7rem 0.9rem;
+  width: 100%;
+}
+
+input[type="text"]:focus-visible {
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -208,7 +222,7 @@ input[type="number"]:focus-visible {
   border-block: 1px solid var(--line);
   display: grid;
   column-gap: clamp(2rem, 8vw, 6rem);
-  row-gap: 1rem;
+  row-gap: 0.75rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   justify-self: center;
   margin-top: 0;
@@ -258,21 +272,21 @@ input[type="number"]:focus-visible {
 
 .readout-column {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.2rem;
   justify-items: center;
   min-width: 0;
 }
 
 .readout-label {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 850;
   text-transform: uppercase;
 }
 
 .pitch-display {
   display: block;
-  font-size: 5.8rem;
+  font-size: 4.9rem;
   font-variant-numeric: tabular-nums;
   font-weight: 850;
   line-height: 0.95;
@@ -285,8 +299,7 @@ input[type="number"]:focus-visible {
 }
 
 .clarity-display,
-.status-display,
-.meter-labels {
+.status-display {
   color: var(--muted);
   font-size: 0.98rem;
   font-variant-numeric: tabular-nums;
@@ -448,19 +461,7 @@ input[type="number"]:focus-visible {
   opacity: 0;
 }
 
-.meter-labels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  justify-content: center;
-  text-align: center;
-}
-
 @media (max-width: 480px) {
-  h1 {
-    font-size: 2.3rem;
-  }
-
   .controls {
     grid-template-columns: 1fr;
   }
@@ -474,7 +475,7 @@ input[type="number"]:focus-visible {
   }
 
   .pitch-display {
-    font-size: 3.35rem;
+    font-size: 3.1rem;
   }
 
   .readout {
@@ -508,6 +509,6 @@ input[type="number"]:focus-visible {
   }
 
   .pitch-display {
-    font-size: 4.15rem;
+    font-size: 3.85rem;
   }
 }

@@ -36,6 +36,7 @@ import {
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
 const stopToneButton = document.getElementById("stopToneButton");
+const themeToggleButton = document.getElementById("themeToggleButton");
 const analysisModeSelect = document.getElementById("analysisModeSelect");
 const waveformSelect = document.getElementById("waveformSelect");
 const minHzInput = document.getElementById("minHzInput");
@@ -57,14 +58,13 @@ const pitchMeter = document.getElementById("pitchMeter");
 const octaveScale = document.getElementById("octaveScale");
 const pitchMarker = document.getElementById("pitchMarker");
 const toneMarker = document.getElementById("toneMarker");
-const meterLabel = document.getElementById("meterLabel");
-const toneMeterLabel = document.getElementById("toneMeterLabel");
 
 const MIN_CLARITY = 0.9;
 const DETECTION_MIN_FREQUENCY = 50;
 const DETECTION_MAX_FREQUENCY = 4000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
+const THEME_STORAGE_KEY = "microtonal-pitch-trainer-theme";
 const dom = {
   pitchMeter,
   octaveScale,
@@ -76,6 +76,7 @@ const state = createAppState(getToneState());
 startButton.addEventListener("click", startAnalysis);
 stopButton.addEventListener("click", () => stopAnalysis());
 stopToneButton.addEventListener("click", stopGeneratedTone);
+themeToggleButton.addEventListener("click", toggleTheme);
 analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
 waveformSelect.addEventListener("change", updateWaveform);
 applyRangeButton.addEventListener("click", applyDisplayRange);
@@ -89,6 +90,7 @@ pitchMeter.addEventListener("pointercancel", endToneDrag);
 
 resetMicDisplays();
 resetToneDisplays();
+initializeTheme();
 syncRangeInputs();
 renderRangeDependentUI(dom, state);
 updateAnalysisModeControls();
@@ -153,7 +155,6 @@ function updateDetectedPitch({ frequency, clarity }) {
     incrementLostPitchFrames(state);
     pitchDisplay.textContent = formatHzDisplay(null);
     statusDisplay.textContent = "No clear pitch detected";
-    meterLabel.textContent = "Detected: No clear pitch";
     pitchMarker.classList.add("is-hidden");
 
     if (state.lostPitchFrames >= LOST_PITCH_FRAMES_BEFORE_RESET) {
@@ -169,7 +170,6 @@ function updateDetectedPitch({ frequency, clarity }) {
   const displayedPitch = formatHzDisplay(state.smoothedPitch);
   pitchDisplay.textContent = displayedPitch;
   statusDisplay.textContent = "Listening...";
-  meterLabel.textContent = `Detected: ${displayedPitch}`;
   updateDetectedMeter(state.smoothedPitch);
 }
 
@@ -244,7 +244,6 @@ function syncToneDisplay(toneState) {
 
   generatedPitchDisplay.textContent = displayedPitch;
   toneStatusDisplay.textContent = `Tone: ${waveformLabel} (${toneState.audioState})`;
-  toneMeterLabel.textContent = `Generated: ${displayedPitch}`;
   renderToneMarker(dom, state);
   stopToneButton.disabled = false;
 }
@@ -259,7 +258,6 @@ function applyInternalToneState(toneState) {
     pitchDisplay.textContent = formatHzDisplay(null);
     clarityDisplay.textContent = "Clarity: --";
     statusDisplay.textContent = "Internal mode: click the pitch bar";
-    meterLabel.textContent = "Detected: No internal tone";
     pitchMarker.classList.add("is-hidden");
     return;
   }
@@ -274,7 +272,6 @@ function applyInternalToneState(toneState) {
 function resetToneDisplays() {
   generatedPitchDisplay.textContent = formatHzDisplay(null);
   toneStatusDisplay.textContent = "Tone: Off";
-  toneMeterLabel.textContent = "Generated: Off";
   renderToneMarker(dom, state);
   stopToneButton.disabled = true;
 }
@@ -283,7 +280,6 @@ function resetMicDisplays(statusText = "Idle") {
   pitchDisplay.textContent = formatHzDisplay(null);
   clarityDisplay.textContent = "Clarity: --";
   statusDisplay.textContent = statusText;
-  meterLabel.textContent = "Detected: No clear pitch";
   renderDetectedMarker(dom, state);
 }
 
@@ -379,4 +375,24 @@ function resetDisplayRange() {
 function syncRangeInputs() {
   minHzInput.value = String(state.displayRange.minHz);
   maxHzInput.value = String(state.displayRange.maxHz);
+}
+
+function initializeTheme() {
+  const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  const preferredTheme = savedTheme === "dark" || savedTheme === "light"
+    ? savedTheme
+    : "light";
+
+  applyTheme(preferredTheme);
+}
+
+function toggleTheme() {
+  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(nextTheme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeToggleButton.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
+  window.localStorage.setItem(THEME_STORAGE_KEY, theme);
 }
