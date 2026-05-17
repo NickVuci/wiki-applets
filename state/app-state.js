@@ -8,6 +8,9 @@ export const DEFAULT_ROOT = {
   frequencyHz: 261.63
 };
 
+export const DEFAULT_SCALE_NAME = "Manual targets";
+export const DEFAULT_PERIOD_RATIO = 2;
+
 export function createAppState(initialToneState) {
   return {
     smoothedPitch: null,
@@ -16,6 +19,7 @@ export function createAppState(initialToneState) {
     activeAnalysisMode: null,
     displayRange: { ...DEFAULT_RANGE },
     root: { ...DEFAULT_ROOT },
+    activeScale: createActiveScale(DEFAULT_SCALE_NAME, DEFAULT_ROOT, []),
     currentToneState: initialToneState,
     pitchTargets: [],
     nextTargetId: 1
@@ -60,6 +64,7 @@ export function setRoot(state, nextRoot) {
     label: nextRoot.label || DEFAULT_ROOT.label,
     frequencyHz: nextRoot.frequencyHz
   };
+  syncManualScale(state);
 }
 
 export function resetDisplayRange(state) {
@@ -87,10 +92,81 @@ export function addManualTarget(state, targetInput) {
 
   state.nextTargetId += 1;
   state.pitchTargets = [...state.pitchTargets, target];
+  syncManualScale(state);
 
   return target;
 }
 
 export function clearTargets(state) {
   state.pitchTargets = [];
+  syncManualScale(state);
+}
+
+export function setActiveScale(state, activeScale) {
+  const nextScale = {
+    name: activeScale.name || DEFAULT_SCALE_NAME,
+    rootLabel: activeScale.rootLabel || state.root.label,
+    rootHz: activeScale.rootHz || state.root.frequencyHz,
+    periodRatio: activeScale.periodRatio || DEFAULT_PERIOD_RATIO,
+    degrees: activeScale.degrees || []
+  };
+
+  state.root = {
+    label: nextScale.rootLabel,
+    frequencyHz: nextScale.rootHz
+  };
+  state.activeScale = nextScale;
+  state.pitchTargets = state.activeScale.degrees.map((degree) => scaleDegreeToTarget(degree, state.activeScale));
+}
+
+export function syncManualScale(state) {
+  state.activeScale = createActiveScale(
+    DEFAULT_SCALE_NAME,
+    state.root,
+    state.pitchTargets.map((target, index) => targetToScaleDegree(target, index, state.root))
+  );
+}
+
+function createActiveScale(name, root, degrees) {
+  return {
+    name,
+    rootLabel: root.label,
+    rootHz: root.frequencyHz,
+    periodRatio: DEFAULT_PERIOD_RATIO,
+    degrees
+  };
+}
+
+function targetToScaleDegree(target, index, root) {
+  return {
+    index,
+    label: target.label,
+    cents: getTargetCentsFromRoot(target, root.frequencyHz),
+    ratio: target.ratio || null,
+    frequencyHz: target.frequencyHz,
+    targetId: target.id,
+    source: target.source
+  };
+}
+
+function scaleDegreeToTarget(degree, scale) {
+  return {
+    id: `scale-degree-${String(degree.index).padStart(3, "0")}`,
+    label: degree.label,
+    frequencyHz: degree.frequencyHz,
+    source: "scale-degree",
+    colorClass: "target-marker",
+    centsFromRoot: degree.cents,
+    rootHz: scale.rootHz,
+    rootLabel: scale.rootLabel,
+    ...(degree.ratio ? { ratio: degree.ratio } : {})
+  };
+}
+
+function getTargetCentsFromRoot(target, rootHz) {
+  if (Number.isFinite(target.centsFromRoot)) {
+    return target.centsFromRoot;
+  }
+
+  return 1200 * Math.log2(target.frequencyHz / rootHz);
 }
