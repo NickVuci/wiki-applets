@@ -1,6 +1,6 @@
 import { DEFAULT_RANGE } from "../state/app-state.js";
 
-export const MIN_VISIBLE_RANGE_OCTAVES = 0.25;
+export const MIN_VISIBLE_RANGE_HZ = 10;
 const FREQUENCY_VISIBILITY_TOLERANCE_RATIO = 1e-9;
 export const SPECTRUM_STOPS = [
   { color: "#f44336", offset: 0 },
@@ -42,8 +42,8 @@ export function validateDisplayRange(minHz, maxHz) {
     return "Maximum Hz must be greater than minimum Hz.";
   }
 
-  if (Math.log2(maxHz / minHz) < MIN_VISIBLE_RANGE_OCTAVES) {
-    return "Choose a wider range so the display stays readable.";
+  if (maxHz - minHz < MIN_VISIBLE_RANGE_HZ) {
+    return `Choose a range at least ${MIN_VISIBLE_RANGE_HZ} Hz wide.`;
   }
 
   return "";
