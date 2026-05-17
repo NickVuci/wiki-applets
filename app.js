@@ -14,16 +14,21 @@ import {
   setActiveAnalysisMode,
   setCurrentToneState,
   setDisplayRange,
+  setRoot,
   setSmoothedPitch,
   setToneDragging,
   clearTargets as clearStateTargets,
   incrementLostPitchFrames
 } from "./state/app-state.js";
 import {
+  centsToFrequency,
   formatClarity,
   formatHzDisplay,
   normalizedPositionToFrequency,
+  ratioToCents,
+  ratioToFrequency,
   validateDisplayRange,
+  validateRootFrequency,
   validateTargetFrequency
 } from "./pitch/pitch-mapping.js";
 import {
@@ -40,9 +45,13 @@ const waveformSelect = document.getElementById("waveformSelect");
 const minHzDisplay = document.getElementById("minHzDisplay");
 const maxHzDisplay = document.getElementById("maxHzDisplay");
 const rangeError = document.getElementById("rangeError");
+const rootLabelInput = document.getElementById("rootLabelInput");
+const rootHzInput = document.getElementById("rootHzInput");
 const targetLabelInput = document.getElementById("targetLabelInput");
-const targetHzInput = document.getElementById("targetHzInput");
-const addHzTargetButton = document.getElementById("addHzTargetButton");
+const targetInputMode = document.getElementById("targetInputMode");
+const targetValueLabel = document.getElementById("targetValueLabel");
+const targetValueInput = document.getElementById("targetValueInput");
+const addTargetButton = document.getElementById("addTargetButton");
 const clearTargetsButton = document.getElementById("clearTargetsButton");
 const targetError = document.getElementById("targetError");
 const pitchDisplay = document.getElementById("pitchDisplay");
@@ -76,7 +85,13 @@ minHzDisplay.addEventListener("blur", handleRangeBlur);
 maxHzDisplay.addEventListener("blur", handleRangeBlur);
 minHzDisplay.addEventListener("keydown", handleRangeKeydown);
 maxHzDisplay.addEventListener("keydown", handleRangeKeydown);
-addHzTargetButton.addEventListener("click", addHzTarget);
+rootLabelInput.addEventListener("blur", applyRootControls);
+rootHzInput.addEventListener("blur", applyRootControls);
+rootLabelInput.addEventListener("keydown", handleRootKeydown);
+rootHzInput.addEventListener("keydown", handleRootKeydown);
+targetInputMode.addEventListener("change", syncTargetInputMode);
+targetValueInput.addEventListener("keydown", handleTargetKeydown);
+addTargetButton.addEventListener("click", addTarget);
 clearTargetsButton.addEventListener("click", clearTargets);
 pitchMeter.addEventListener("pointerdown", startToneDrag);
 pitchMeter.addEventListener("pointermove", updateToneDrag);
@@ -88,6 +103,8 @@ resetToneDisplays();
 initializeTheme();
 syncRangeInputs();
 syncRangeDisplays();
+syncRootControls();
+syncTargetInputMode();
 renderRangeDependentUI(dom, state);
 updateAnalysisModeControls();
 
@@ -292,27 +309,180 @@ function updateAnalysisModeControls() {
   micToggleButton.disabled = false;
 }
 
-function addHzTarget() {
+function addTarget() {
+  const target = buildTargetFromInputs();
+
+  if (!target) {
+    return;
+  }
+
+  addManualTarget(state, target);
+  targetError.textContent = "";
+  targetLabelInput.value = "";
+  targetValueInput.value = "";
+  renderRangeDependentUI(dom, state);
+}
+
+function buildTargetFromInputs() {
+  const rootApplied = applyRootControls();
+
+  if (!rootApplied) {
+    return null;
+  }
+
+  const mode = targetInputMode.value;
   const label = targetLabelInput.value.trim();
-  const frequencyHz = Number(targetHzInput.value);
+  const rawValue = targetValueInput.value.trim();
+
+  if (mode === "hz") {
+    return buildHzTarget(label, rawValue);
+  }
+
+  if (mode === "cents") {
+    return buildCentsTarget(label, rawValue);
+  }
+
+  if (mode === "ratio") {
+    return buildRatioTarget(label, rawValue);
+  }
+
+  targetError.textContent = "Choose a valid target input mode.";
+  return null;
+}
+
+function buildHzTarget(label, rawValue) {
+  const frequencyHz = Number(rawValue);
   const validationMessage = validateTargetFrequency(frequencyHz);
 
   if (validationMessage) {
     targetError.textContent = validationMessage;
-    return;
+    return null;
   }
 
-  addManualTarget(state, label, frequencyHz);
-  targetError.textContent = "";
-  targetLabelInput.value = "";
-  targetHzInput.value = "";
-  renderRangeDependentUI(dom, state);
+  return {
+    label,
+    frequencyHz,
+    source: "manual-hz"
+  };
+}
+
+function buildCentsTarget(label, rawValue) {
+  if (rawValue === "") {
+    targetError.textContent = "Enter a cents value, for example 386.31.";
+    return null;
+  }
+
+  const cents = Number(rawValue);
+
+  if (!Number.isFinite(cents)) {
+    targetError.textContent = "Enter a cents value, for example 386.31.";
+    return null;
+  }
+
+  const frequencyHz = centsToFrequency(state.root.frequencyHz, cents);
+  const validationMessage = validateTargetFrequency(frequencyHz);
+
+  if (validationMessage) {
+    targetError.textContent = validationMessage;
+    return null;
+  }
+
+  return {
+    label: label || `${formatIntervalNumber(cents)} cents`,
+    frequencyHz,
+    source: "manual-cents",
+    centsFromRoot: cents,
+    rootHz: state.root.frequencyHz,
+    rootLabel: state.root.label
+  };
+}
+
+function buildRatioTarget(label, rawValue) {
+  if (rawValue === "") {
+    targetError.textContent = "Enter a ratio like 3/2 or 1.5.";
+    return null;
+  }
+
+  try {
+    const frequencyHz = ratioToFrequency(state.root.frequencyHz, rawValue);
+    const validationMessage = validateTargetFrequency(frequencyHz);
+
+    if (validationMessage) {
+      targetError.textContent = validationMessage;
+      return null;
+    }
+
+    return {
+      label: label || rawValue,
+      frequencyHz,
+      source: "manual-ratio",
+      ratio: rawValue,
+      centsFromRoot: ratioToCents(rawValue),
+      rootHz: state.root.frequencyHz,
+      rootLabel: state.root.label
+    };
+  } catch (error) {
+    targetError.textContent = error.message;
+    return null;
+  }
 }
 
 function clearTargets() {
   clearStateTargets(state);
   targetError.textContent = "";
   renderRangeDependentUI(dom, state);
+}
+
+function applyRootControls() {
+  const nextRootLabel = rootLabelInput.value.trim() || "Root";
+  const nextRootHz = Number(rootHzInput.value);
+  const validationMessage = validateRootFrequency(nextRootHz);
+
+  if (validationMessage) {
+    targetError.textContent = validationMessage;
+    syncRootControls();
+    return false;
+  }
+
+  setRoot(state, {
+    label: nextRootLabel,
+    frequencyHz: nextRootHz
+  });
+  syncRootControls();
+  targetError.textContent = "";
+
+  return true;
+}
+
+function syncRootControls() {
+  rootLabelInput.value = state.root.label;
+  rootHzInput.value = String(state.root.frequencyHz);
+}
+
+function syncTargetInputMode() {
+  const mode = targetInputMode.value;
+
+  if (mode === "hz") {
+    targetValueLabel.textContent = "Target Hz";
+    targetValueInput.placeholder = "261.63";
+    targetValueInput.inputMode = "decimal";
+    return;
+  }
+
+  if (mode === "cents") {
+    targetValueLabel.textContent = "Cents above root";
+    targetValueInput.placeholder = "701.955";
+    targetValueInput.inputMode = "decimal";
+    return;
+  }
+
+  targetValueLabel.textContent = "Ratio above root";
+  targetValueInput.placeholder = "3/2";
+  targetValueInput.inputMode = "text";
+}
+
+function formatIntervalNumber(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function isUsablePitch(frequency, clarity) {
@@ -428,4 +598,27 @@ function handleRangeKeydown(event) {
 
 function handleRangeBlur() {
   applyDisplayRange();
+}
+
+function handleRootKeydown(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyRootControls();
+    event.currentTarget.blur();
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    syncRootControls();
+    targetError.textContent = "";
+    event.currentTarget.blur();
+  }
+}
+
+function handleTargetKeydown(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addTarget();
+  }
 }

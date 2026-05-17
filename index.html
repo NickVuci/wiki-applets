@@ -48,16 +48,34 @@
 
         <section id="targetPanel" class="target-panel" aria-label="Pitch targets">
           <h2 class="panel-heading">Pitch Targets</h2>
+          <div id="rootPanel" class="root-controls">
+            <label class="target-control" for="rootLabelInput">
+              <span>Root label</span>
+              <input id="rootLabelInput" type="text" value="Root">
+            </label>
+            <label class="target-control" for="rootHzInput">
+              <span>Root frequency Hz</span>
+              <input id="rootHzInput" type="number" value="261.63" min="1" step="0.01">
+            </label>
+          </div>
           <div class="target-controls">
             <label class="target-control" for="targetLabelInput">
               <span>Target label</span>
               <input id="targetLabelInput" type="text" placeholder="C4, 1/1, target 1">
             </label>
-            <label class="target-control" for="targetHzInput">
-              <span>Target Hz</span>
-              <input id="targetHzInput" type="number" min="1" step="0.01" placeholder="261.63">
+            <label class="target-control" for="targetInputMode">
+              <span>Input mode</span>
+              <select id="targetInputMode">
+                <option value="hz">Hz</option>
+                <option value="cents">Cents above root</option>
+                <option value="ratio">Ratio above root</option>
+              </select>
             </label>
-            <button id="addHzTargetButton" type="button">Add Hz Target</button>
+            <label class="target-control" for="targetValueInput">
+              <span id="targetValueLabel">Target Hz</span>
+              <input id="targetValueInput" type="text" inputmode="decimal" placeholder="261.63">
+            </label>
+            <button id="addTargetButton" type="button">Add Target</button>
             <button id="clearTargetsButton" type="button">Clear Targets</button>
           </div>
           <div id="targetError" class="target-error" aria-live="polite"></div>

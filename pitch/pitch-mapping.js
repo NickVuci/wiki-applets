@@ -1,6 +1,7 @@
 import { DEFAULT_RANGE } from "../state/app-state.js";
 
 export const MIN_VISIBLE_RANGE_OCTAVES = 0.25;
+const FREQUENCY_VISIBILITY_TOLERANCE_RATIO = 1e-9;
 export const SPECTRUM_STOPS = [
   { color: "#f44336", offset: 0 },
   { color: "#ff9800", offset: 0.16 },
@@ -56,6 +57,57 @@ export function validateTargetFrequency(frequencyHz) {
   return "";
 }
 
+export function validateRootFrequency(frequencyHz) {
+  if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
+    return "Enter a root frequency greater than 0 Hz.";
+  }
+
+  return "";
+}
+
+export function centsToFrequency(rootHz, cents) {
+  return rootHz * 2 ** (cents / 1200);
+}
+
+export function ratioToFrequency(rootHz, ratioText) {
+  const parsedRatio = parseRatio(ratioText);
+
+  return rootHz * parsedRatio.value;
+}
+
+export function ratioToCents(ratioText) {
+  const parsedRatio = parseRatio(ratioText);
+
+  return 1200 * Math.log2(parsedRatio.value);
+}
+
+export function parseRatio(ratioText) {
+  const text = ratioText.trim();
+  const parts = text.split("/");
+
+  if (parts.length > 2 || parts.some((part) => part.trim() === "")) {
+    throw new Error("Enter a ratio like 3/2 or 1.5.");
+  }
+
+  const numerator = Number(parts[0]);
+  const denominator = parts.length === 2 ? Number(parts[1]) : 1;
+
+  if (
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    numerator <= 0 ||
+    denominator <= 0
+  ) {
+    throw new Error("Enter a positive ratio like 3/2 or 1.5.");
+  }
+
+  return {
+    denominator,
+    numerator,
+    value: numerator / denominator
+  };
+}
+
 export function frequencyToNormalizedPosition(frequencyHz, range) {
   if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
     return null;
@@ -78,10 +130,12 @@ export function normalizedPositionToFrequency(position, range) {
 }
 
 export function isFrequencyVisible(frequency, range) {
+  const tolerance = Math.max(range.minHz, range.maxHz) * FREQUENCY_VISIBILITY_TOLERANCE_RATIO;
+
   return (
     Number.isFinite(frequency) &&
-    frequency >= range.minHz &&
-    frequency <= range.maxHz
+    frequency >= range.minHz - tolerance &&
+    frequency <= range.maxHz + tolerance
   );
 }
 

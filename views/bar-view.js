@@ -90,13 +90,13 @@ function renderTargetMarkers(pitchMeter, pitchTargets, range) {
 
 function renderMarker(markerElement, frequency, range) {
   if (!isFrequencyVisible(frequency, range)) {
-    markerElement.style.left = "0%";
+    markerElement.style.setProperty("--marker-position", "0%");
     markerElement.classList.add("is-hidden");
     return;
   }
 
   const position = frequencyToNormalizedPosition(frequency, range);
 
-  markerElement.style.left = `${position * 100}%`;
+  markerElement.style.setProperty("--marker-position", `${position * 100}%`);
   markerElement.classList.remove("is-hidden");
 }
