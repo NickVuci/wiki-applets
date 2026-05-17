@@ -1,12 +1,27 @@
-import { PitchDetector } from "https://esm.sh/pitchy@4";
+import { startAnalyzer, stopAnalyzer } from "./mic-analyzer.js";
+import {
+  getToneState,
+  resumeIfNeeded,
+  setToneFrequency,
+  setWaveform,
+  stopTone
+} from "./tone-generator.js";
 
 const startButton = document.getElementById("startButton");
 const stopButton = document.getElementById("stopButton");
+const stopToneButton = document.getElementById("stopToneButton");
+const analysisModeSelect = document.getElementById("analysisModeSelect");
+const waveformSelect = document.getElementById("waveformSelect");
 const pitchDisplay = document.getElementById("pitchDisplay");
+const generatedPitchDisplay = document.getElementById("generatedPitchDisplay");
 const clarityDisplay = document.getElementById("clarityDisplay");
 const statusDisplay = document.getElementById("statusDisplay");
+const toneStatusDisplay = document.getElementById("toneStatusDisplay");
+const pitchMeter = document.getElementById("pitchMeter");
 const pitchMarker = document.getElementById("pitchMarker");
+const toneMarker = document.getElementById("toneMarker");
 const meterLabel = document.getElementById("meterLabel");
+const toneMeterLabel = document.getElementById("toneMeterLabel");
 
 const MIN_CLARITY = 0.9;
 const MIN_FREQUENCY = 50;
@@ -14,102 +29,87 @@ const MAX_FREQUENCY = 2000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
 
-let audioContext = null;
-let analyser = null;
-let mediaStream = null;
-let sourceNode = null;
-let detector = null;
-let inputBuffer = null;
-let animationFrameId = null;
 let smoothedPitch = null;
 let lostPitchFrames = 0;
+let isDraggingTone = false;
+let activeAnalysisMode = null;
 
-startButton.addEventListener("click", startMicrophone);
-stopButton.addEventListener("click", stopMicrophone);
+startButton.addEventListener("click", startAnalysis);
+stopButton.addEventListener("click", () => stopAnalysis());
+stopToneButton.addEventListener("click", stopGeneratedTone);
+analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
+waveformSelect.addEventListener("change", updateWaveform);
+pitchMeter.addEventListener("pointerdown", startToneDrag);
+pitchMeter.addEventListener("pointermove", updateToneDrag);
+pitchMeter.addEventListener("pointerup", endToneDrag);
+pitchMeter.addEventListener("pointercancel", endToneDrag);
 
-resetDisplays();
+resetMicDisplays();
+resetToneDisplays();
+updateAnalysisModeControls();
 
-async function startMicrophone() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    showMicrophoneError();
+async function startAnalysis() {
+  if (analysisModeSelect.value === "internal") {
+    startInternalAnalysis();
     return;
   }
 
+  await startMicrophoneAnalysis();
+}
+
+async function startMicrophoneAnalysis() {
   setControlsForStarting();
   statusDisplay.textContent = "Requesting microphone access...";
 
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    });
-
-    audioContext = createAudioContext();
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-
-    // Audio signal path:
-    // microphone stream -> MediaStreamAudioSourceNode -> AnalyserNode.
-    // The analyser exposes time-domain samples for Pitchy, and it is not
-    // connected to the destination, so microphone audio is never played back.
-    sourceNode = audioContext.createMediaStreamSource(mediaStream);
-    sourceNode.connect(analyser);
-
-    inputBuffer = new Float32Array(analyser.fftSize);
-    detector = PitchDetector.forFloat32Array(analyser.fftSize);
+    await startAnalyzer(updateDetectedPitch);
+    await resumeIfNeeded();
 
     statusDisplay.textContent = "Listening...";
+    activeAnalysisMode = "microphone";
     stopButton.disabled = false;
-    updatePitch();
+    startButton.disabled = true;
+    analysisModeSelect.disabled = true;
+    syncToneDisplay(getToneState());
   } catch (error) {
     console.error(error);
-    await stopMicrophone("Microphone access denied or unavailable");
+    await stopAnalysis("Microphone access denied or unavailable");
   }
 }
 
-function createAudioContext() {
-  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
-
-  if (!AudioContextConstructor) {
-    throw new Error("AudioContext is not supported in this browser.");
-  }
-
-  return new AudioContextConstructor();
+function startInternalAnalysis() {
+  activeAnalysisMode = "internal";
+  smoothedPitch = null;
+  lostPitchFrames = 0;
+  startButton.disabled = true;
+  stopButton.disabled = false;
+  analysisModeSelect.disabled = true;
+  statusDisplay.textContent = "Internal tone analysis";
+  applyInternalToneState(getToneState());
 }
 
-function updatePitch() {
-  if (!analyser || !inputBuffer || !audioContext || !detector) {
-    return;
-  }
+async function stopAnalysis(statusText = "Idle") {
+  await stopAnalyzer();
 
-  analyser.getFloatTimeDomainData(inputBuffer);
+  activeAnalysisMode = null;
+  smoothedPitch = null;
+  lostPitchFrames = 0;
 
-  const result = detectPitch(inputBuffer, audioContext.sampleRate);
-  updateDisplay(result.frequency, result.clarity);
-
-  animationFrameId = requestAnimationFrame(updatePitch);
+  resetMicDisplays(statusText);
+  startButton.disabled = false;
+  stopButton.disabled = true;
+  analysisModeSelect.disabled = false;
+  updateAnalysisModeControls();
 }
 
-function detectPitch(buffer, sampleRate) {
-  const [frequency, clarity] = detector.findPitch(buffer, sampleRate);
-
-  return {
-    frequency,
-    clarity
-  };
-}
-
-function updateDisplay(frequency, clarity) {
+function updateDetectedPitch({ frequency, clarity }) {
   clarityDisplay.textContent = `Clarity: ${formatClarity(clarity)}`;
 
   if (!isUsablePitch(frequency, clarity)) {
     lostPitchFrames += 1;
     pitchDisplay.textContent = "-- Hz";
     statusDisplay.textContent = "No clear pitch detected";
-    meterLabel.textContent = "No clear pitch";
+    meterLabel.textContent = "Detected: No clear pitch";
     pitchMarker.classList.add("is-hidden");
 
     if (lostPitchFrames >= LOST_PITCH_FRAMES_BEFORE_RESET) {
@@ -125,8 +125,139 @@ function updateDisplay(frequency, clarity) {
   const displayedPitch = `${smoothedPitch.toFixed(2)} Hz`;
   pitchDisplay.textContent = displayedPitch;
   statusDisplay.textContent = "Listening...";
-  meterLabel.textContent = displayedPitch;
-  updateMeter(smoothedPitch);
+  meterLabel.textContent = `Detected: ${displayedPitch}`;
+  updateDetectedMeter(smoothedPitch);
+}
+
+async function startToneDrag(event) {
+  event.preventDefault();
+  isDraggingTone = true;
+  pitchMeter.setPointerCapture(event.pointerId);
+  await setToneFromPointer(event);
+}
+
+async function updateToneDrag(event) {
+  if (!isDraggingTone) {
+    return;
+  }
+
+  event.preventDefault();
+  await setToneFromPointer(event);
+}
+
+function endToneDrag(event) {
+  if (!isDraggingTone) {
+    return;
+  }
+
+  isDraggingTone = false;
+
+  if (pitchMeter.hasPointerCapture(event.pointerId)) {
+    pitchMeter.releasePointerCapture(event.pointerId);
+  }
+}
+
+async function setToneFromPointer(event) {
+  const position = pointerToMeterPosition(event);
+  const frequency = meterPositionToFrequency(position);
+  const toneState = await setToneFrequency(frequency);
+
+  syncToneDisplay(toneState);
+  applyInternalToneState(toneState);
+}
+
+function pointerToMeterPosition(event) {
+  const rect = pitchMeter.getBoundingClientRect();
+  const position = (event.clientX - rect.left) / rect.width;
+
+  return Math.max(0, Math.min(1, position));
+}
+
+function updateWaveform() {
+  const toneState = setWaveform(waveformSelect.value);
+
+  syncToneDisplay(toneState);
+}
+
+async function stopGeneratedTone() {
+  const toneState = await stopTone();
+
+  syncToneDisplay(toneState);
+  applyInternalToneState(toneState);
+}
+
+function syncToneDisplay(toneState) {
+  if (!toneState.isPlaying || toneState.frequency === null) {
+    resetToneDisplays();
+    return;
+  }
+
+  const displayedPitch = `${toneState.frequency.toFixed(2)} Hz`;
+  const waveformLabel = waveformSelect.options[waveformSelect.selectedIndex].text;
+
+  generatedPitchDisplay.textContent = displayedPitch;
+  toneStatusDisplay.textContent = `Tone: ${waveformLabel} (${toneState.audioState})`;
+  toneMeterLabel.textContent = `Generated: ${displayedPitch}`;
+  toneMarker.style.left = `${frequencyToMeterPosition(toneState.frequency) * 100}%`;
+  toneMarker.classList.remove("is-hidden");
+  stopToneButton.disabled = false;
+}
+
+function applyInternalToneState(toneState) {
+  if (activeAnalysisMode !== "internal") {
+    return;
+  }
+
+  if (!toneState.isPlaying || toneState.frequency === null) {
+    smoothedPitch = null;
+    lostPitchFrames = 0;
+    pitchDisplay.textContent = "-- Hz";
+    clarityDisplay.textContent = "Clarity: --";
+    statusDisplay.textContent = "Internal mode: click the pitch bar";
+    meterLabel.textContent = "Detected: No internal tone";
+    pitchMarker.classList.add("is-hidden");
+    return;
+  }
+
+  updateDetectedPitch({
+    frequency: toneState.frequency,
+    clarity: 1
+  });
+  statusDisplay.textContent = "Internal tone analysis";
+}
+
+function resetToneDisplays() {
+  generatedPitchDisplay.textContent = "-- Hz";
+  toneStatusDisplay.textContent = "Tone: Off";
+  toneMeterLabel.textContent = "Generated: Off";
+  toneMarker.style.left = "0%";
+  toneMarker.classList.add("is-hidden");
+  stopToneButton.disabled = true;
+}
+
+function resetMicDisplays(statusText = "Idle") {
+  pitchDisplay.textContent = "-- Hz";
+  clarityDisplay.textContent = "Clarity: --";
+  statusDisplay.textContent = statusText;
+  meterLabel.textContent = "Detected: No clear pitch";
+  pitchMarker.style.left = "0%";
+  pitchMarker.classList.add("is-hidden");
+}
+
+function setControlsForStarting() {
+  startButton.disabled = true;
+  stopButton.disabled = true;
+}
+
+function updateAnalysisModeControls() {
+  if (activeAnalysisMode !== null) {
+    return;
+  }
+
+  const isInternalMode = analysisModeSelect.value === "internal";
+
+  startButton.textContent = isInternalMode ? "Start Internal" : "Start Analysis";
+  stopButton.textContent = isInternalMode ? "Stop Internal" : "Stop Analysis";
 }
 
 function isUsablePitch(frequency, clarity) {
@@ -146,7 +277,7 @@ function smoothPitch(frequency) {
   return smoothedPitch * (1 - SMOOTHING) + frequency * SMOOTHING;
 }
 
-function updateMeter(frequency) {
+function updateDetectedMeter(frequency) {
   const position = frequencyToMeterPosition(frequency);
 
   pitchMarker.style.left = `${position * 100}%`;
@@ -162,62 +293,18 @@ function frequencyToMeterPosition(frequency) {
   return Math.max(0, Math.min(1, normalized));
 }
 
+function meterPositionToFrequency(position) {
+  const minLog = Math.log2(MIN_FREQUENCY);
+  const maxLog = Math.log2(MAX_FREQUENCY);
+  const valueLog = minLog + position * (maxLog - minLog);
+
+  return 2 ** valueLog;
+}
+
 function formatClarity(clarity) {
   if (!Number.isFinite(clarity)) {
     return "--";
   }
 
   return clarity.toFixed(3);
-}
-
-async function stopMicrophone(statusText = "Idle") {
-  if (animationFrameId !== null) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-  }
-
-  if (mediaStream) {
-    mediaStream.getTracks().forEach((track) => track.stop());
-  }
-
-  if (sourceNode) {
-    sourceNode.disconnect();
-  }
-
-  if (audioContext && audioContext.state !== "closed") {
-    await audioContext.close();
-  }
-
-  audioContext = null;
-  analyser = null;
-  mediaStream = null;
-  sourceNode = null;
-  detector = null;
-  inputBuffer = null;
-  smoothedPitch = null;
-  lostPitchFrames = 0;
-
-  resetDisplays(statusText);
-  startButton.disabled = false;
-  stopButton.disabled = true;
-}
-
-function resetDisplays(statusText = "Idle") {
-  pitchDisplay.textContent = "-- Hz";
-  clarityDisplay.textContent = "Clarity: --";
-  statusDisplay.textContent = statusText;
-  meterLabel.textContent = "No clear pitch";
-  pitchMarker.style.left = "0%";
-  pitchMarker.classList.add("is-hidden");
-}
-
-function setControlsForStarting() {
-  startButton.disabled = true;
-  stopButton.disabled = true;
-}
-
-function showMicrophoneError() {
-  resetDisplays("Microphone access denied or unavailable");
-  startButton.disabled = false;
-  stopButton.disabled = true;
 }

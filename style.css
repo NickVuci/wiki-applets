@@ -1,7 +1,6 @@
 :root {
   color-scheme: light;
   --background: #f4f7f5;
-  --surface: #ffffff;
   --text: #14201c;
   --muted: #5f6f69;
   --line: #d9e3de;
@@ -12,7 +11,6 @@
   --meter-start: #4f8fce;
   --meter-mid: #e6b84f;
   --meter-end: #c75a4a;
-  --shadow: 0 20px 55px rgb(30 57 49 / 14%);
 }
 
 * {
@@ -22,9 +20,7 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgb(79 143 206 / 18%), transparent 34rem),
-    linear-gradient(135deg, #f7faf8 0%, var(--background) 100%);
+  background: var(--background);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -40,7 +36,8 @@ button {
   transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-button:focus-visible {
+button:focus-visible,
+select:focus-visible {
   outline: 3px solid rgb(79 143 206 / 48%);
   outline-offset: 3px;
 }
@@ -55,26 +52,27 @@ button:disabled {
 }
 
 .app-shell {
-  align-items: center;
+  align-items: stretch;
   display: flex;
   justify-content: center;
   min-height: 100vh;
-  padding: 1.25rem;
+  padding: clamp(1rem, 3vw, 2rem);
 }
 
 .tracker-card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  max-width: 600px;
-  padding: clamp(1.25rem, 4vw, 2.5rem);
-  width: min(100%, 600px);
+  display: grid;
+  gap: clamp(1.25rem, 4vh, 2.5rem);
+  grid-template-rows: auto auto auto 1fr;
+  max-width: 1120px;
+  padding: clamp(1rem, 4vw, 2.5rem) 0;
+  width: 100%;
 }
 
 .app-header {
   display: grid;
   gap: 0.55rem;
+  justify-items: center;
+  text-align: center;
 }
 
 .eyebrow {
@@ -97,13 +95,17 @@ h1 {
   font-size: 1.02rem;
   line-height: 1.5;
   margin: 0;
+  max-width: 34rem;
 }
 
 .controls {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 1.7rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  justify-self: center;
+  margin-top: 0;
+  max-width: 940px;
+  width: 100%;
 }
 
 #startButton {
@@ -121,18 +123,68 @@ h1 {
   color: var(--danger);
 }
 
-#stopButton:hover:not(:disabled) {
+#stopButton:hover:not(:disabled),
+#stopToneButton:hover:not(:disabled) {
   background: var(--danger-hover);
   color: #fff;
+}
+
+#stopToneButton {
+  background: #f4ebe8;
+  color: var(--danger);
+}
+
+.source-control,
+.waveform-control {
+  align-items: stretch;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.source-control span,
+.waveform-control span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+select {
+  appearance: none;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  padding: 0.7rem 0.9rem;
 }
 
 .readout {
   border-block: 1px solid var(--line);
   display: grid;
-  gap: 0.45rem;
-  margin-top: 1.75rem;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: center;
+  margin-top: 0;
+  max-width: 840px;
   padding: 1.5rem 0;
   text-align: center;
+  width: 100%;
+}
+
+.readout-column {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.readout-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .pitch-display {
@@ -142,9 +194,13 @@ h1 {
   line-height: 0.95;
 }
 
+.generated-display {
+  color: var(--danger);
+}
+
 .clarity-display,
 .status-display,
-.meter-label {
+.meter-labels {
   color: var(--muted);
   font-size: 0.98rem;
   font-variant-numeric: tabular-nums;
@@ -156,49 +212,68 @@ h1 {
 }
 
 .meter-section {
+  align-content: center;
   display: grid;
-  gap: 0.8rem;
-  margin-top: 1.5rem;
+  gap: 1rem;
+  margin-top: 0;
+  min-height: 180px;
+  width: 100%;
 }
 
 .pitch-meter {
   background: linear-gradient(90deg, var(--meter-start), var(--meter-mid), var(--meter-end));
   border-radius: 8px;
-  height: 24px;
+  cursor: crosshair;
+  height: clamp(32px, 7vh, 64px);
   position: relative;
+  touch-action: none;
+  width: 100%;
 }
 
 .meter-scale {
   align-items: center;
   color: rgb(255 255 255 / 86%);
   display: flex;
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   font-weight: 750;
   height: 100%;
   justify-content: space-between;
-  padding-inline: 0.65rem;
+  padding-inline: 1rem;
   pointer-events: none;
 }
 
-.pitch-marker {
+.pitch-marker,
+.tone-marker {
   background: #ffffff;
   border: 3px solid var(--text);
   border-radius: 999px;
   box-shadow: 0 7px 16px rgb(20 32 28 / 18%);
-  height: 34px;
+  height: calc(100% + 20px);
   left: 0%;
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
   transition: left 90ms linear, opacity 160ms ease;
-  width: 16px;
+  width: 18px;
 }
 
-.pitch-marker.is-hidden {
+.tone-marker {
+  background: var(--danger);
+  border-color: #ffffff;
+  width: 22px;
+  z-index: 2;
+}
+
+.pitch-marker.is-hidden,
+.tone-marker.is-hidden {
   opacity: 0;
 }
 
-.meter-label {
+.meter-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  justify-content: center;
   text-align: center;
 }
 
@@ -215,7 +290,21 @@ h1 {
     font-size: 3.35rem;
   }
 
+  .readout {
+    grid-template-columns: 1fr;
+  }
+
   .tracker-card {
-    padding: 1.1rem;
+    padding-block: 0.5rem;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 760px) {
+  .controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pitch-display {
+    font-size: 4.15rem;
   }
 }

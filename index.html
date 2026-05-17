@@ -16,15 +16,40 @@
           <p class="instructions">Sing or play one note at a time into your microphone.</p>
         </header>
 
-        <div class="controls" aria-label="Microphone controls">
-          <button id="startButton" type="button">Start Microphone</button>
-          <button id="stopButton" type="button" disabled>Stop</button>
+        <div class="controls" aria-label="Audio controls">
+          <button id="startButton" type="button">Start Analysis</button>
+          <button id="stopButton" type="button" disabled>Stop Analysis</button>
+          <label class="source-control" for="analysisModeSelect">
+            <span>Source</span>
+            <select id="analysisModeSelect">
+              <option value="microphone">Microphone</option>
+              <option value="internal">Internal tone</option>
+            </select>
+          </label>
+          <label class="waveform-control" for="waveformSelect">
+            <span>Waveform</span>
+            <select id="waveformSelect">
+              <option value="sine">Sine</option>
+              <option value="square">Square</option>
+              <option value="sawtooth">Sawtooth</option>
+              <option value="triangle">Triangle</option>
+            </select>
+          </label>
+          <button id="stopToneButton" type="button" disabled>Stop Tone</button>
         </div>
 
         <section class="readout" aria-live="polite">
-          <div id="pitchDisplay" class="pitch-display">-- Hz</div>
-          <div id="clarityDisplay" class="clarity-display">Clarity: --</div>
-          <div id="statusDisplay" class="status-display">Idle</div>
+          <div class="readout-column">
+            <span class="readout-label">Detected</span>
+            <div id="pitchDisplay" class="pitch-display">-- Hz</div>
+            <div id="clarityDisplay" class="clarity-display">Clarity: --</div>
+            <div id="statusDisplay" class="status-display">Idle</div>
+          </div>
+          <div class="readout-column">
+            <span class="readout-label">Generated</span>
+            <div id="generatedPitchDisplay" class="pitch-display generated-display">-- Hz</div>
+            <div id="toneStatusDisplay" class="clarity-display">Tone: Off</div>
+          </div>
         </section>
 
         <section class="meter-section" aria-label="Pitch meter">
@@ -34,8 +59,12 @@
               <span>2000 Hz</span>
             </div>
             <div id="pitchMarker" class="pitch-marker is-hidden"></div>
+            <div id="toneMarker" class="tone-marker is-hidden"></div>
           </div>
-          <div id="meterLabel" class="meter-label">No clear pitch</div>
+          <div class="meter-labels">
+            <span id="meterLabel">Detected: No clear pitch</span>
+            <span id="toneMeterLabel">Generated: Off</span>
+          </div>
         </section>
       </section>
     </main>
