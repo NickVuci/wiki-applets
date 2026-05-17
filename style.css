@@ -158,6 +158,14 @@ select {
   padding: 0.7rem 0.9rem;
 }
 
+input[type="file"] {
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  max-width: 13rem;
+}
+
 input[type="number"] {
   appearance: textfield;
   background: var(--surface);
@@ -244,12 +252,26 @@ input[type="text"]:focus-visible {
   width: min(100%, 13rem);
 }
 
+.file-control {
+  width: min(100%, 13rem);
+}
+
 .target-control.is-hidden {
   display: none;
 }
 
 .compact-input {
   max-width: 11rem;
+}
+
+.checkbox-control {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  min-height: 48px;
 }
 
 .target-control span {
@@ -263,6 +285,17 @@ input[type="text"]:focus-visible {
   font-size: 0.9rem;
   font-weight: 700;
   min-height: 1.2rem;
+}
+
+.target-status {
+  color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-height: 1.2rem;
+}
+
+.target-status.is-error {
+  color: var(--danger);
 }
 
 .readout-column {

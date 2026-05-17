@@ -12,6 +12,7 @@ import {
   resetLostPitchFrames,
   resetMicTrackingState,
   setActiveAnalysisMode,
+  setActiveScale,
   setCurrentToneState,
   setDisplayRange,
   setRoot,
@@ -36,6 +37,10 @@ import {
   renderRangeDependentUI,
   renderToneMarker
 } from "./views/bar-view.js";
+import {
+  buildActiveScaleFromScl,
+  parseSclScale
+} from "./scale/scl-parser.js";
 
 const micToggleButton = document.getElementById("micToggleButton");
 const stopToneButton = document.getElementById("stopToneButton");
@@ -54,6 +59,11 @@ const targetValueInput = document.getElementById("targetValueInput");
 const addTargetButton = document.getElementById("addTargetButton");
 const clearTargetsButton = document.getElementById("clearTargetsButton");
 const targetError = document.getElementById("targetError");
+const sclFileInput = document.getElementById("sclFileInput");
+const sclRootHzInput = document.getElementById("sclRootHzInput");
+const repeatScaleAcrossRangeInput = document.getElementById("repeatScaleAcrossRangeInput");
+const loadScaleButton = document.getElementById("loadScaleButton");
+const scaleUploadStatus = document.getElementById("scaleUploadStatus");
 const pitchDisplay = document.getElementById("pitchDisplay");
 const generatedPitchDisplay = document.getElementById("generatedPitchDisplay");
 const clarityDisplay = document.getElementById("clarityDisplay");
@@ -91,6 +101,8 @@ targetInputMode.addEventListener("change", syncTargetInputMode);
 targetValueInput.addEventListener("keydown", handleTargetKeydown);
 addTargetButton.addEventListener("click", addTarget);
 clearTargetsButton.addEventListener("click", clearTargets);
+loadScaleButton.addEventListener("click", loadScaleFromFile);
+sclRootHzInput.addEventListener("keydown", handleScaleRootKeydown);
 pitchMeter.addEventListener("pointerdown", startToneDrag);
 pitchMeter.addEventListener("pointermove", updateToneDrag);
 pitchMeter.addEventListener("pointerup", endToneDrag);
@@ -102,6 +114,7 @@ initializeTheme();
 syncRangeInputs();
 syncRangeDisplays();
 syncRootControls();
+syncScaleRootControl();
 syncTargetInputMode();
 renderRangeDependentUI(dom, state);
 updateAnalysisModeControls();
@@ -431,6 +444,47 @@ function clearTargets() {
   renderRangeDependentUI(dom, state);
 }
 
+async function loadScaleFromFile() {
+  const file = sclFileInput.files?.[0];
+  const rootHz = Number(sclRootHzInput.value);
+  const rootValidationMessage = validateRootFrequency(rootHz);
+
+  if (!file) {
+    scaleUploadStatus.classList.add("is-error");
+    scaleUploadStatus.textContent = "Choose a .scl file to load.";
+    return;
+  }
+
+  if (rootValidationMessage) {
+    scaleUploadStatus.classList.add("is-error");
+    scaleUploadStatus.textContent = rootValidationMessage;
+    syncScaleRootControl();
+    return;
+  }
+
+  try {
+    const fileText = await file.text();
+    const parsedScale = parseSclScale(fileText);
+    const activeScale = buildActiveScaleFromScl(parsedScale, {
+      displayRange: state.displayRange,
+      repeatAcrossRange: repeatScaleAcrossRangeInput.checked,
+      rootHz,
+      rootLabel: "Root"
+    });
+
+    setActiveScale(state, activeScale);
+    syncRootControls();
+    syncScaleRootControl();
+    targetError.textContent = "";
+    scaleUploadStatus.classList.remove("is-error");
+    scaleUploadStatus.textContent = `Loaded ${activeScale.name} (${activeScale.degrees.length} targets).`;
+    renderRangeDependentUI(dom, state);
+  } catch (error) {
+    scaleUploadStatus.classList.add("is-error");
+    scaleUploadStatus.textContent = error.message;
+  }
+}
+
 function applyRootControls() {
   const nextRootHz = Number(rootHzInput.value);
   const validationMessage = validateRootFrequency(nextRootHz);
@@ -453,6 +507,10 @@ function applyRootControls() {
 
 function syncRootControls() {
   rootHzInput.value = String(state.root.frequencyHz);
+}
+
+function syncScaleRootControl() {
+  sclRootHzInput.value = String(state.root.frequencyHz);
 }
 
 function syncTargetInputMode() {
@@ -620,5 +678,12 @@ function handleTargetKeydown(event) {
   if (event.key === "Enter") {
     event.preventDefault();
     addTarget();
+  }
+}
+
+function handleScaleRootKeydown(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    loadScaleFromFile();
   }
 }
