@@ -12,6 +12,11 @@ const stopButton = document.getElementById("stopButton");
 const stopToneButton = document.getElementById("stopToneButton");
 const analysisModeSelect = document.getElementById("analysisModeSelect");
 const waveformSelect = document.getElementById("waveformSelect");
+const minHzInput = document.getElementById("minHzInput");
+const maxHzInput = document.getElementById("maxHzInput");
+const applyRangeButton = document.getElementById("applyRangeButton");
+const resetRangeButton = document.getElementById("resetRangeButton");
+const rangeError = document.getElementById("rangeError");
 const pitchDisplay = document.getElementById("pitchDisplay");
 const generatedPitchDisplay = document.getElementById("generatedPitchDisplay");
 const clarityDisplay = document.getElementById("clarityDisplay");
@@ -24,11 +29,14 @@ const toneMarker = document.getElementById("toneMarker");
 const meterLabel = document.getElementById("meterLabel");
 const toneMeterLabel = document.getElementById("toneMeterLabel");
 
+const DEFAULT_RANGE = {
+  minHz: 50,
+  maxHz: 2000
+};
 const MIN_CLARITY = 0.9;
-const MIN_FREQUENCY = 50;
-const MAX_FREQUENCY = 2000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
+const MIN_VISIBLE_RANGE_OCTAVES = 0.25;
 const SPECTRUM_STOPS = [
   { color: "#f44336", offset: 0 },
   { color: "#ff9800", offset: 0.16 },
@@ -44,12 +52,16 @@ let smoothedPitch = null;
 let lostPitchFrames = 0;
 let isDraggingTone = false;
 let activeAnalysisMode = null;
+let displayRange = { ...DEFAULT_RANGE };
+let currentToneState = getToneState();
 
 startButton.addEventListener("click", startAnalysis);
 stopButton.addEventListener("click", () => stopAnalysis());
 stopToneButton.addEventListener("click", stopGeneratedTone);
 analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
 waveformSelect.addEventListener("change", updateWaveform);
+applyRangeButton.addEventListener("click", applyDisplayRange);
+resetRangeButton.addEventListener("click", resetDisplayRange);
 pitchMeter.addEventListener("pointerdown", startToneDrag);
 pitchMeter.addEventListener("pointermove", updateToneDrag);
 pitchMeter.addEventListener("pointerup", endToneDrag);
@@ -57,7 +69,8 @@ pitchMeter.addEventListener("pointercancel", endToneDrag);
 
 resetMicDisplays();
 resetToneDisplays();
-initializeMeterSpectrum();
+syncRangeInputs();
+renderRangeDependentUI();
 updateAnalysisModeControls();
 
 async function startAnalysis() {
@@ -82,7 +95,8 @@ async function startMicrophoneAnalysis() {
     stopButton.disabled = false;
     startButton.disabled = true;
     analysisModeSelect.disabled = true;
-    syncToneDisplay(getToneState());
+    currentToneState = getToneState();
+    syncToneDisplay(currentToneState);
   } catch (error) {
     console.error(error);
     await stopAnalysis("Microphone access denied or unavailable");
@@ -174,6 +188,7 @@ async function setToneFromPointer(event) {
   const frequency = meterPositionToFrequency(position);
   const toneState = await setToneFrequency(frequency);
 
+  currentToneState = toneState;
   syncToneDisplay(toneState);
   applyInternalToneState(toneState);
 }
@@ -188,12 +203,14 @@ function pointerToMeterPosition(event) {
 function updateWaveform() {
   const toneState = setWaveform(waveformSelect.value);
 
+  currentToneState = toneState;
   syncToneDisplay(toneState);
 }
 
 async function stopGeneratedTone() {
   const toneState = await stopTone();
 
+  currentToneState = toneState;
   syncToneDisplay(toneState);
   applyInternalToneState(toneState);
 }
@@ -210,8 +227,7 @@ function syncToneDisplay(toneState) {
   generatedPitchDisplay.textContent = displayedPitch;
   toneStatusDisplay.textContent = `Tone: ${waveformLabel} (${toneState.audioState})`;
   toneMeterLabel.textContent = `Generated: ${displayedPitch}`;
-  toneMarker.style.left = `${frequencyToMeterPosition(toneState.frequency) * 100}%`;
-  toneMarker.classList.remove("is-hidden");
+  renderToneMarker();
   stopToneButton.disabled = false;
 }
 
@@ -242,8 +258,7 @@ function resetToneDisplays() {
   generatedPitchDisplay.textContent = formatHzDisplay(null);
   toneStatusDisplay.textContent = "Tone: Off";
   toneMeterLabel.textContent = "Generated: Off";
-  toneMarker.style.left = "0%";
-  toneMarker.classList.add("is-hidden");
+  renderToneMarker();
   stopToneButton.disabled = true;
 }
 
@@ -252,8 +267,7 @@ function resetMicDisplays(statusText = "Idle") {
   clarityDisplay.textContent = "Clarity: --";
   statusDisplay.textContent = statusText;
   meterLabel.textContent = "Detected: No clear pitch";
-  pitchMarker.style.left = "0%";
-  pitchMarker.classList.add("is-hidden");
+  renderDetectedMarker();
 }
 
 function setControlsForStarting() {
@@ -290,54 +304,32 @@ function smoothPitch(frequency) {
 }
 
 function updateDetectedMeter(frequency) {
-  const position = frequencyToMeterPosition(frequency);
-
-  pitchMarker.style.left = `${position * 100}%`;
-  pitchMarker.classList.remove("is-hidden");
-}
-
-function frequencyToMeterPosition(frequency) {
-  const minLog = Math.log2(MIN_FREQUENCY);
-  const maxLog = Math.log2(MAX_FREQUENCY);
-  const valueLog = Math.log2(frequency);
-  const normalized = (valueLog - minLog) / (maxLog - minLog);
-
-  return Math.max(0, Math.min(1, normalized));
-}
-
-function initializeMeterSpectrum() {
-  pitchMeter.style.background = buildOctaveSpectrumGradient();
-  renderOctaveScale();
+  renderDetectedMarker(frequency);
 }
 
 function buildOctaveSpectrumGradient() {
-  const octaveStarts = getOctaveFrequencies();
   const gradientStops = [];
+  const samples = 96;
 
-  for (let index = 0; index < octaveStarts.length; index += 1) {
-    const segmentStart = octaveStarts[index];
-    const segmentEnd = Math.min(segmentStart * 2, MAX_FREQUENCY);
-    const startPosition = frequencyToMeterPosition(segmentStart);
-    const endPosition = frequencyToMeterPosition(segmentEnd);
-    const segmentWidth = endPosition - startPosition;
+  for (let index = 0; index <= samples; index += 1) {
+    const position = index / samples;
+    const frequency = normalizedPositionToFrequency(position);
+    const color = getSpectrumColorForFrequency(frequency);
 
-    for (const stop of SPECTRUM_STOPS) {
-      const position = startPosition + segmentWidth * stop.offset;
-      gradientStops.push(`${stop.color} ${(position * 100).toFixed(3)}%`);
-    }
+    gradientStops.push(`${color} ${(position * 100).toFixed(3)}%`);
   }
 
   return `linear-gradient(90deg, ${gradientStops.join(", ")})`;
 }
 
 function renderOctaveScale() {
-  const octaveFrequencies = getOctaveFrequencies();
+  const octaveFrequencies = getVisibleOctaveFrequencies();
 
   octaveScale.replaceChildren();
 
   octaveFrequencies.forEach((frequency, index) => {
     const label = document.createElement("span");
-    const position = frequencyToMeterPosition(frequency);
+    const position = frequencyToNormalizedPosition(frequency);
 
     label.className = "meter-scale-label";
     label.textContent = `${formatFrequencyLabel(frequency)} Hz`;
@@ -359,16 +351,37 @@ function renderOctaveScale() {
   });
 }
 
-function getOctaveFrequencies() {
+function getOctaveStartFrequencies() {
   const octaves = [];
-  let frequency = MIN_FREQUENCY;
+  let frequency = getFirstOctaveBoundary(displayRange.minHz);
 
-  while (frequency <= MAX_FREQUENCY) {
+  while (frequency <= displayRange.maxHz) {
     octaves.push(frequency);
     frequency *= 2;
   }
 
   return octaves;
+}
+
+function getVisibleOctaveFrequencies() {
+  const octaves = [];
+  let frequency = getFirstOctaveBoundary(displayRange.minHz);
+
+  while (frequency < displayRange.minHz) {
+    frequency *= 2;
+  }
+
+  while (frequency <= displayRange.maxHz) {
+    octaves.push(frequency);
+    frequency *= 2;
+  }
+
+  return octaves;
+}
+
+function getFirstOctaveBoundary(minFrequency) {
+  const octaveExponent = Math.floor(Math.log2(minFrequency / DEFAULT_RANGE.minHz));
+  return DEFAULT_RANGE.minHz * 2 ** octaveExponent;
 }
 
 function formatFrequencyLabel(frequency) {
@@ -384,11 +397,162 @@ function formatHzDisplay(frequency) {
 }
 
 function meterPositionToFrequency(position) {
-  const minLog = Math.log2(MIN_FREQUENCY);
-  const maxLog = Math.log2(MAX_FREQUENCY);
+  return normalizedPositionToFrequency(position);
+}
+
+function frequencyToNormalizedPosition(frequencyHz, range = displayRange) {
+  if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
+    return null;
+  }
+
+  const minLog = Math.log2(range.minHz);
+  const maxLog = Math.log2(range.maxHz);
+  const valueLog = Math.log2(frequencyHz);
+  const normalized = (valueLog - minLog) / (maxLog - minLog);
+
+  return Math.max(0, Math.min(1, normalized));
+}
+
+function normalizedPositionToFrequency(position, range = displayRange) {
+  const minLog = Math.log2(range.minHz);
+  const maxLog = Math.log2(range.maxHz);
   const valueLog = minLog + position * (maxLog - minLog);
 
   return 2 ** valueLog;
+}
+
+function getSpectrumColorForFrequency(frequency) {
+  const octaveBase = getFirstOctaveBoundary(frequency);
+  const octaveOffset = Math.log2(frequency / octaveBase);
+  const clampedOffset = Math.max(0, Math.min(1, octaveOffset));
+
+  return interpolateSpectrumColor(clampedOffset);
+}
+
+function interpolateSpectrumColor(offset) {
+  for (let index = 0; index < SPECTRUM_STOPS.length - 1; index += 1) {
+    const currentStop = SPECTRUM_STOPS[index];
+    const nextStop = SPECTRUM_STOPS[index + 1];
+
+    if (offset < currentStop.offset || offset > nextStop.offset) {
+      continue;
+    }
+
+    const localOffset = (offset - currentStop.offset) / (nextStop.offset - currentStop.offset);
+    return interpolateHexColor(currentStop.color, nextStop.color, localOffset);
+  }
+
+  return SPECTRUM_STOPS[SPECTRUM_STOPS.length - 1].color;
+}
+
+function interpolateHexColor(startColor, endColor, offset) {
+  const start = hexToRgb(startColor);
+  const end = hexToRgb(endColor);
+  const red = Math.round(start.red + (end.red - start.red) * offset);
+  const green = Math.round(start.green + (end.green - start.green) * offset);
+  const blue = Math.round(start.blue + (end.blue - start.blue) * offset);
+
+  return `rgb(${red} ${green} ${blue})`;
+}
+
+function hexToRgb(hexColor) {
+  const hex = hexColor.replace("#", "");
+
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16)
+  };
+}
+
+function applyDisplayRange() {
+  const nextMin = Number(minHzInput.value);
+  const nextMax = Number(maxHzInput.value);
+  const validationMessage = validateDisplayRange(nextMin, nextMax);
+
+  if (validationMessage) {
+    rangeError.textContent = validationMessage;
+    return;
+  }
+
+  displayRange = {
+    minHz: nextMin,
+    maxHz: nextMax
+  };
+  rangeError.textContent = "";
+  renderRangeDependentUI();
+}
+
+function resetDisplayRange() {
+  displayRange = { ...DEFAULT_RANGE };
+  rangeError.textContent = "";
+  syncRangeInputs();
+  renderRangeDependentUI();
+}
+
+function validateDisplayRange(minHz, maxHz) {
+  if (!Number.isFinite(minHz) || !Number.isFinite(maxHz)) {
+    return "Enter valid numeric minimum and maximum Hz values.";
+  }
+
+  if (minHz <= 0 || maxHz <= 0) {
+    return "Minimum and maximum Hz must both be greater than 0.";
+  }
+
+  if (maxHz <= minHz) {
+    return "Maximum Hz must be greater than minimum Hz.";
+  }
+
+  if (Math.log2(maxHz / minHz) < MIN_VISIBLE_RANGE_OCTAVES) {
+    return "Choose a wider range so the display stays readable.";
+  }
+
+  return "";
+}
+
+function syncRangeInputs() {
+  minHzInput.value = String(displayRange.minHz);
+  maxHzInput.value = String(displayRange.maxHz);
+}
+
+function renderRangeDependentUI() {
+  renderMeterBackground();
+  renderOctaveScale();
+  renderDetectedMarker();
+  renderToneMarker();
+}
+
+function renderMeterBackground() {
+  pitchMeter.style.background = buildOctaveSpectrumGradient();
+}
+
+function renderDetectedMarker(frequency = smoothedPitch) {
+  renderMarker(pitchMarker, frequency);
+}
+
+function renderToneMarker() {
+  renderMarker(toneMarker, currentToneState.frequency);
+}
+
+function renderMarker(markerElement, frequency) {
+  if (!isFrequencyVisible(frequency)) {
+    markerElement.style.left = "0%";
+    markerElement.classList.add("is-hidden");
+    return;
+  }
+
+  const position = frequencyToNormalizedPosition(frequency);
+
+  markerElement.style.left = `${position * 100}%`;
+  markerElement.classList.remove("is-hidden");
+}
+
+function isFrequencyVisible(frequency) {
+  return (
+    Number.isFinite(frequency) &&
+    frequency >= displayRange.minHz &&
+    frequency <= displayRange.maxHz
+  );
 }
 
 function formatClarity(clarity) {

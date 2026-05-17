@@ -38,6 +38,20 @@
           <button id="stopToneButton" type="button" disabled>Stop Tone</button>
         </div>
 
+        <section id="rangePanel" class="range-panel" aria-label="Display range controls">
+          <label class="range-control" for="minHzInput">
+            <span>Minimum Hz</span>
+            <input id="minHzInput" type="number" value="50" min="1" step="1">
+          </label>
+          <label class="range-control" for="maxHzInput">
+            <span>Maximum Hz</span>
+            <input id="maxHzInput" type="number" value="2000" min="1" step="1">
+          </label>
+          <button id="applyRangeButton" type="button">Apply Range</button>
+          <button id="resetRangeButton" type="button">Reset 50-2000 Hz</button>
+          <div id="rangeError" class="range-error" aria-live="polite"></div>
+        </section>
+
         <section class="readout" aria-live="polite">
           <div class="readout-column">
             <span class="readout-label">Detected</span>

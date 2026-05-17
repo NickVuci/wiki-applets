@@ -159,6 +159,51 @@ select {
   padding: 0.7rem 0.9rem;
 }
 
+input[type="number"] {
+  appearance: textfield;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  min-height: 48px;
+  padding: 0.7rem 0.9rem;
+  width: 100%;
+}
+
+input[type="number"]:focus-visible {
+  outline: 3px solid rgb(79 143 206 / 48%);
+  outline-offset: 3px;
+}
+
+.range-panel {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.range-control {
+  align-items: stretch;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.range-control span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.range-error {
+  color: var(--danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+  grid-column: 1 / -1;
+  min-height: 1.2rem;
+}
+
 .readout {
   border-block: 1px solid var(--line);
   display: grid;
@@ -327,6 +372,10 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .range-panel {
+    grid-template-columns: 1fr;
+  }
+
   .pitch-display {
     font-size: 3.35rem;
   }
@@ -350,6 +399,10 @@ select {
 
 @media (min-width: 481px) and (max-width: 760px) {
   .controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .range-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
