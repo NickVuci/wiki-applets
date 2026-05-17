@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Microphone Pitch Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="tracker-card" aria-labelledby="appTitle">
+        <header class="app-header">
+          <p class="eyebrow">Monophonic tuner MVP</p>
+          <h1 id="appTitle">Microphone Pitch Tracker</h1>
+          <p class="instructions">Sing or play one note at a time into your microphone.</p>
+        </header>
+
+        <div class="controls" aria-label="Microphone controls">
+          <button id="startButton" type="button">Start Microphone</button>
+          <button id="stopButton" type="button" disabled>Stop</button>
+        </div>
+
+        <section class="readout" aria-live="polite">
+          <div id="pitchDisplay" class="pitch-display">-- Hz</div>
+          <div id="clarityDisplay" class="clarity-display">Clarity: --</div>
+          <div id="statusDisplay" class="status-display">Idle</div>
+        </section>
+
+        <section class="meter-section" aria-label="Pitch meter">
+          <div id="pitchMeter" class="pitch-meter">
+            <div class="meter-scale" aria-hidden="true">
+              <span>50 Hz</span>
+              <span>2000 Hz</span>
+            </div>
+            <div id="pitchMarker" class="pitch-marker is-hidden"></div>
+          </div>
+          <div id="meterLabel" class="meter-label">No clear pitch</div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>
