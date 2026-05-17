@@ -96,6 +96,18 @@
         </section>
 
         <section class="meter-section" aria-label="Pitch meter">
+          <label class="range-preset-control" for="rangePresetSelect">
+            <span>Range preset</span>
+            <select id="rangePresetSelect">
+              <option value="custom">Custom</option>
+              <option value="low-voice">Low voice</option>
+              <option value="medium-voice">Medium voice</option>
+              <option value="high-voice">High voice</option>
+              <option value="guitar">Guitar</option>
+              <option value="violin">Violin</option>
+              <option value="wide">Wide 50-2000 Hz</option>
+            </select>
+          </label>
           <div id="pitchMeter" class="pitch-meter">
             <div id="pitchMarker" class="pitch-marker is-hidden"></div>
             <div id="toneMarker" class="tone-marker is-hidden"></div>

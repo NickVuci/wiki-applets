@@ -341,10 +341,29 @@ input[type="text"]:focus-visible {
 .meter-section {
   align-content: center;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.55rem;
   margin-top: 0;
   min-height: 180px;
   width: 100%;
+}
+
+.range-preset-control {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.6rem;
+  justify-self: center;
+}
+
+.range-preset-control span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.range-preset-control select {
+  min-height: 40px;
+  min-width: 13rem;
+  padding-block: 0.45rem;
 }
 
 .pitch-meter {
@@ -539,6 +558,17 @@ input[type="text"]:focus-visible {
 
   .meter-range-display {
     font-size: 0.76rem;
+  }
+
+  .range-preset-control {
+    align-items: stretch;
+    display: grid;
+    justify-self: stretch;
+  }
+
+  .range-preset-control select {
+    min-width: 0;
+    width: 100%;
   }
 
   .tracker-card {

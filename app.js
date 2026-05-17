@@ -47,6 +47,7 @@ const stopToneButton = document.getElementById("stopToneButton");
 const themeToggleButton = document.getElementById("themeToggleButton");
 const analysisModeSelect = document.getElementById("analysisModeSelect");
 const waveformSelect = document.getElementById("waveformSelect");
+const rangePresetSelect = document.getElementById("rangePresetSelect");
 const minHzDisplay = document.getElementById("minHzDisplay");
 const maxHzDisplay = document.getElementById("maxHzDisplay");
 const rangeError = document.getElementById("rangeError");
@@ -79,18 +80,46 @@ const DETECTION_MAX_FREQUENCY = 4000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
 const THEME_STORAGE_KEY = "microtonal-pitch-trainer-theme";
+const RANGE_PRESETS = {
+  wide: {
+    minHz: 50,
+    maxHz: 2000
+  },
+  "low-voice": {
+    minHz: 70,
+    maxHz: 400
+  },
+  "medium-voice": {
+    minHz: 100,
+    maxHz: 700
+  },
+  "high-voice": {
+    minHz: 150,
+    maxHz: 1100
+  },
+  guitar: {
+    minHz: 70,
+    maxHz: 1400
+  },
+  violin: {
+    minHz: 180,
+    maxHz: 3200
+  }
+};
 const dom = {
   pitchMeter,
   pitchMarker,
   toneMarker
 };
 const state = createAppState(getToneState());
+let customDisplayRange = { ...state.displayRange };
 
 micToggleButton.addEventListener("click", handleMicToggle);
 stopToneButton.addEventListener("click", stopGeneratedTone);
 themeToggleButton.addEventListener("click", toggleTheme);
 analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
 waveformSelect.addEventListener("change", updateWaveform);
+rangePresetSelect.addEventListener("change", applyRangePreset);
 minHzDisplay.addEventListener("blur", handleRangeBlur);
 maxHzDisplay.addEventListener("blur", handleRangeBlur);
 minHzDisplay.addEventListener("keydown", handleRangeKeydown);
@@ -568,6 +597,29 @@ function meterPositionToFrequency(position) {
   return normalizedPositionToFrequency(position, state.displayRange);
 }
 
+function applyRangePreset() {
+  const preset = RANGE_PRESETS[rangePresetSelect.value];
+
+  if (rangePresetSelect.value === "custom") {
+    setDisplayRange(state, customDisplayRange);
+    rangeError.textContent = "";
+    syncRangeInputs();
+    syncRangeDisplays();
+    renderRangeDependentUI(dom, state);
+    return;
+  }
+
+  if (!preset) {
+    return;
+  }
+
+  setDisplayRange(state, preset);
+  rangeError.textContent = "";
+  syncRangeInputs();
+  syncRangeDisplays();
+  renderRangeDependentUI(dom, state);
+}
+
 function applyDisplayRange() {
   const nextMin = Number(minHzDisplay.textContent.trim());
   const nextMax = Number(maxHzDisplay.textContent.trim());
@@ -583,10 +635,18 @@ function applyDisplayRange() {
     minHz: nextMin,
     maxHz: nextMax
   });
+  customDisplayRange = { ...state.displayRange };
   rangeError.textContent = "";
+  rangePresetSelect.value = getMatchingRangePreset(nextMin, nextMax) || "custom";
   syncRangeInputs();
   syncRangeDisplays();
   renderRangeDependentUI(dom, state);
+}
+
+function getMatchingRangePreset(minHz, maxHz) {
+  return Object.entries(RANGE_PRESETS).find(([, preset]) => (
+    preset.minHz === minHz && preset.maxHz === maxHz
+  ))?.[0] || "";
 }
 
 function syncRangeInputs() {
