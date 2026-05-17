@@ -86,29 +86,29 @@ button:disabled {
 .controls {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   justify-self: center;
   margin-top: 0;
   max-width: 1120px;
   width: 100%;
 }
 
-#startButton {
+#micToggleButton {
   background: var(--primary);
   color: #fff;
 }
 
-#startButton:hover:not(:disabled) {
+#micToggleButton:hover:not(:disabled) {
   background: var(--primary-hover);
   box-shadow: 0 10px 22px rgb(30 107 92 / 20%);
 }
 
-#stopButton {
-  background: #f4ebe8;
+#micToggleButton.is-stop {
+  background: var(--surface-soft);
   color: var(--danger);
 }
 
-#stopButton:hover:not(:disabled),
+#micToggleButton.is-stop:hover:not(:disabled),
 #stopToneButton:hover:not(:disabled) {
   background: var(--danger-hover);
   color: #fff;

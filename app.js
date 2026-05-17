@@ -33,8 +33,7 @@ import {
   renderToneMarker
 } from "./views/bar-view.js";
 
-const startButton = document.getElementById("startButton");
-const stopButton = document.getElementById("stopButton");
+const micToggleButton = document.getElementById("micToggleButton");
 const stopToneButton = document.getElementById("stopToneButton");
 const themeToggleButton = document.getElementById("themeToggleButton");
 const analysisModeSelect = document.getElementById("analysisModeSelect");
@@ -73,8 +72,7 @@ const dom = {
 };
 const state = createAppState(getToneState());
 
-startButton.addEventListener("click", startAnalysis);
-stopButton.addEventListener("click", () => stopAnalysis());
+micToggleButton.addEventListener("click", handleMicToggle);
 stopToneButton.addEventListener("click", stopGeneratedTone);
 themeToggleButton.addEventListener("click", toggleTheme);
 analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
@@ -114,11 +112,10 @@ async function startMicrophoneAnalysis() {
 
     statusDisplay.textContent = "Listening...";
     setActiveAnalysisMode(state, "microphone");
-    stopButton.disabled = false;
-    startButton.disabled = true;
     analysisModeSelect.disabled = true;
     setCurrentToneState(state, getToneState());
     syncToneDisplay(state.currentToneState);
+    syncMicToggleButton();
   } catch (error) {
     console.error(error);
     await stopAnalysis("Microphone access denied or unavailable");
@@ -128,11 +125,10 @@ async function startMicrophoneAnalysis() {
 function startInternalAnalysis() {
   setActiveAnalysisMode(state, "internal");
   resetMicTrackingState(state);
-  startButton.disabled = true;
-  stopButton.disabled = false;
   analysisModeSelect.disabled = true;
   statusDisplay.textContent = "Internal tone analysis";
   applyInternalToneState(getToneState());
+  syncMicToggleButton();
 }
 
 async function stopAnalysis(statusText = "Idle") {
@@ -142,10 +138,9 @@ async function stopAnalysis(statusText = "Idle") {
   resetMicTrackingState(state);
 
   resetMicDisplays(statusText);
-  startButton.disabled = false;
-  stopButton.disabled = true;
   analysisModeSelect.disabled = false;
   updateAnalysisModeControls();
+  syncMicToggleButton();
 }
 
 function updateDetectedPitch({ frequency, clarity }) {
@@ -284,8 +279,7 @@ function resetMicDisplays(statusText = "Idle") {
 }
 
 function setControlsForStarting() {
-  startButton.disabled = true;
-  stopButton.disabled = true;
+  micToggleButton.disabled = true;
 }
 
 function updateAnalysisModeControls() {
@@ -295,8 +289,9 @@ function updateAnalysisModeControls() {
 
   const isInternalMode = analysisModeSelect.value === "internal";
 
-  startButton.textContent = isInternalMode ? "Start Internal" : "Start Analysis";
-  stopButton.textContent = isInternalMode ? "Stop Internal" : "Stop Analysis";
+  micToggleButton.textContent = isInternalMode ? "Start Internal" : "Start Analysis";
+  micToggleButton.classList.remove("is-stop");
+  micToggleButton.disabled = false;
 }
 
 function addHzTarget() {
@@ -395,4 +390,24 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   themeToggleButton.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
   window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+}
+
+async function handleMicToggle() {
+  if (state.activeAnalysisMode === null) {
+    await startAnalysis();
+    return;
+  }
+
+  await stopAnalysis();
+}
+
+function syncMicToggleButton() {
+  const isRunning = state.activeAnalysisMode !== null;
+  const isInternalMode = state.activeAnalysisMode === "internal" || analysisModeSelect.value === "internal";
+
+  micToggleButton.disabled = false;
+  micToggleButton.classList.toggle("is-stop", isRunning);
+  micToggleButton.textContent = isRunning
+    ? (isInternalMode ? "Stop Internal" : "Stop Analysis")
+    : (isInternalMode ? "Start Internal" : "Start Analysis");
 }
