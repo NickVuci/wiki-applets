@@ -382,6 +382,14 @@ input[type="number"]:focus-visible {
   width: 18px;
 }
 
+.pitch-marker,
+.tone-marker,
+.target-marker,
+.target-marker-label,
+.target-marker-frequency {
+  pointer-events: none;
+}
+
 .tone-marker {
   background: var(--danger);
   border-color: #ffffff;
@@ -413,6 +421,23 @@ input[type="number"]:focus-visible {
   padding: 0.24rem 0.4rem;
   position: absolute;
   top: -1.75rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.target-marker-frequency {
+  background: rgb(244 247 245 / 92%);
+  border: 1px solid rgb(20 32 28 / 10%);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  left: 50%;
+  line-height: 1;
+  padding: 0.22rem 0.38rem;
+  position: absolute;
+  top: calc(100% + 0.45rem);
   transform: translateX(-50%);
   white-space: nowrap;
 }

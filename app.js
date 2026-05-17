@@ -39,6 +39,8 @@ const DEFAULT_RANGE = {
   maxHz: 2000
 };
 const MIN_CLARITY = 0.9;
+const DETECTION_MIN_FREQUENCY = 50;
+const DETECTION_MAX_FREQUENCY = 4000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
 const MIN_VISIBLE_RANGE_OCTAVES = 0.25;
@@ -330,8 +332,8 @@ function isUsablePitch(frequency, clarity) {
   return (
     clarity >= MIN_CLARITY &&
     Number.isFinite(frequency) &&
-    frequency >= MIN_FREQUENCY &&
-    frequency <= MAX_FREQUENCY
+    frequency >= DETECTION_MIN_FREQUENCY &&
+    frequency <= DETECTION_MAX_FREQUENCY
   );
 }
 
@@ -587,6 +589,7 @@ function renderTargetMarkers() {
 
     const marker = document.createElement("div");
     const label = document.createElement("span");
+    const frequency = document.createElement("span");
     const position = frequencyToNormalizedPosition(target.frequencyHz);
 
     marker.className = "target-marker";
@@ -594,7 +597,9 @@ function renderTargetMarkers() {
     marker.title = `${target.label}: ${formatHzDisplay(target.frequencyHz).replace("\u00A0", " ")}`;
     label.className = "target-marker-label";
     label.textContent = target.label;
-    marker.append(label);
+    frequency.className = "target-marker-frequency";
+    frequency.textContent = formatHzDisplay(target.frequencyHz);
+    marker.append(label, frequency);
     pitchMeter.append(marker);
   });
 }
