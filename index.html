@@ -32,20 +32,6 @@
           <button id="themeToggleButton" type="button">Dark Mode</button>
         </div>
 
-        <section id="rangePanel" class="range-panel" aria-label="Display range controls">
-          <label class="range-control" for="minHzInput">
-            <span>Minimum Hz</span>
-            <input id="minHzInput" type="number" value="50" min="1" step="1">
-          </label>
-          <label class="range-control" for="maxHzInput">
-            <span>Maximum Hz</span>
-            <input id="maxHzInput" type="number" value="2000" min="1" step="1">
-          </label>
-          <button id="applyRangeButton" type="button">Apply Range</button>
-          <button id="resetRangeButton" type="button">Reset 50-2000 Hz</button>
-          <div id="rangeError" class="range-error" aria-live="polite"></div>
-        </section>
-
         <section class="readout" aria-live="polite">
           <div class="readout-column">
             <span class="readout-label">Detected</span>
@@ -82,7 +68,17 @@
             <div id="pitchMarker" class="pitch-marker is-hidden"></div>
             <div id="toneMarker" class="tone-marker is-hidden"></div>
           </div>
-          <div id="octaveScale" class="meter-scale" aria-hidden="true"></div>
+          <div class="meter-range" aria-label="Display range">
+            <div class="meter-range-end meter-range-start">
+              <span id="minHzDisplay" class="meter-range-display" contenteditable="plaintext-only" spellcheck="false" role="textbox" aria-label="Minimum Hz">50</span>
+              <span class="meter-range-unit">Hz</span>
+            </div>
+            <div class="meter-range-end meter-range-endcap">
+              <span id="maxHzDisplay" class="meter-range-display" contenteditable="plaintext-only" spellcheck="false" role="textbox" aria-label="Maximum Hz">2000</span>
+              <span class="meter-range-unit">Hz</span>
+            </div>
+          </div>
+          <div id="rangeError" class="range-error meter-range-error" aria-live="polite"></div>
         </section>
       </section>
     </main>

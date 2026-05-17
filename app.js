@@ -9,7 +9,6 @@ import {
 import {
   addManualTarget,
   createAppState,
-  resetDisplayRange as resetStateDisplayRange,
   resetLostPitchFrames,
   resetMicTrackingState,
   setActiveAnalysisMode,
@@ -38,10 +37,8 @@ const stopToneButton = document.getElementById("stopToneButton");
 const themeToggleButton = document.getElementById("themeToggleButton");
 const analysisModeSelect = document.getElementById("analysisModeSelect");
 const waveformSelect = document.getElementById("waveformSelect");
-const minHzInput = document.getElementById("minHzInput");
-const maxHzInput = document.getElementById("maxHzInput");
-const applyRangeButton = document.getElementById("applyRangeButton");
-const resetRangeButton = document.getElementById("resetRangeButton");
+const minHzDisplay = document.getElementById("minHzDisplay");
+const maxHzDisplay = document.getElementById("maxHzDisplay");
 const rangeError = document.getElementById("rangeError");
 const targetLabelInput = document.getElementById("targetLabelInput");
 const targetHzInput = document.getElementById("targetHzInput");
@@ -54,7 +51,6 @@ const clarityDisplay = document.getElementById("clarityDisplay");
 const statusDisplay = document.getElementById("statusDisplay");
 const toneStatusDisplay = document.getElementById("toneStatusDisplay");
 const pitchMeter = document.getElementById("pitchMeter");
-const octaveScale = document.getElementById("octaveScale");
 const pitchMarker = document.getElementById("pitchMarker");
 const toneMarker = document.getElementById("toneMarker");
 
@@ -66,7 +62,6 @@ const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
 const THEME_STORAGE_KEY = "microtonal-pitch-trainer-theme";
 const dom = {
   pitchMeter,
-  octaveScale,
   pitchMarker,
   toneMarker
 };
@@ -77,8 +72,10 @@ stopToneButton.addEventListener("click", stopGeneratedTone);
 themeToggleButton.addEventListener("click", toggleTheme);
 analysisModeSelect.addEventListener("change", updateAnalysisModeControls);
 waveformSelect.addEventListener("change", updateWaveform);
-applyRangeButton.addEventListener("click", applyDisplayRange);
-resetRangeButton.addEventListener("click", resetDisplayRange);
+minHzDisplay.addEventListener("blur", handleRangeBlur);
+maxHzDisplay.addEventListener("blur", handleRangeBlur);
+minHzDisplay.addEventListener("keydown", handleRangeKeydown);
+maxHzDisplay.addEventListener("keydown", handleRangeKeydown);
 addHzTargetButton.addEventListener("click", addHzTarget);
 clearTargetsButton.addEventListener("click", clearTargets);
 pitchMeter.addEventListener("pointerdown", startToneDrag);
@@ -90,6 +87,7 @@ resetMicDisplays();
 resetToneDisplays();
 initializeTheme();
 syncRangeInputs();
+syncRangeDisplays();
 renderRangeDependentUI(dom, state);
 updateAnalysisModeControls();
 
@@ -343,12 +341,13 @@ function meterPositionToFrequency(position) {
 }
 
 function applyDisplayRange() {
-  const nextMin = Number(minHzInput.value);
-  const nextMax = Number(maxHzInput.value);
+  const nextMin = Number(minHzDisplay.textContent.trim());
+  const nextMax = Number(maxHzDisplay.textContent.trim());
   const validationMessage = validateDisplayRange(nextMin, nextMax);
 
   if (validationMessage) {
     rangeError.textContent = validationMessage;
+    syncRangeDisplays();
     return;
   }
 
@@ -357,19 +356,18 @@ function applyDisplayRange() {
     maxHz: nextMax
   });
   rangeError.textContent = "";
-  renderRangeDependentUI(dom, state);
-}
-
-function resetDisplayRange() {
-  resetStateDisplayRange(state);
-  rangeError.textContent = "";
   syncRangeInputs();
+  syncRangeDisplays();
   renderRangeDependentUI(dom, state);
 }
 
 function syncRangeInputs() {
-  minHzInput.value = String(state.displayRange.minHz);
-  maxHzInput.value = String(state.displayRange.maxHz);
+  syncRangeDisplays();
+}
+
+function syncRangeDisplays() {
+  minHzDisplay.textContent = String(state.displayRange.minHz);
+  maxHzDisplay.textContent = String(state.displayRange.maxHz);
 }
 
 function initializeTheme() {
@@ -410,4 +408,24 @@ function syncMicToggleButton() {
   micToggleButton.textContent = isRunning
     ? (isInternalMode ? "Stop Internal" : "Stop Analysis")
     : (isInternalMode ? "Start Internal" : "Start Analysis");
+}
+
+function handleRangeKeydown(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyDisplayRange();
+    event.currentTarget.blur();
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    syncRangeDisplays();
+    rangeError.textContent = "";
+    event.currentTarget.blur();
+  }
+}
+
+function handleRangeBlur() {
+  applyDisplayRange();
 }

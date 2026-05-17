@@ -9,7 +9,9 @@ import {
 
 export function renderRangeDependentUI(dom, state) {
   renderMeterBackground(dom.pitchMeter, state.displayRange);
-  renderOctaveScale(dom.octaveScale, state.displayRange);
+  if (dom.octaveScale) {
+    renderOctaveScale(dom.octaveScale, state.displayRange);
+  }
   renderTargetMarkers(dom.pitchMeter, state.pitchTargets, state.displayRange);
   renderMarker(dom.pitchMarker, state.smoothedPitch, state.displayRange);
   renderMarker(dom.toneMarker, state.currentToneState.frequency, state.displayRange);
