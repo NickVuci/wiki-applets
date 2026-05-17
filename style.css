@@ -8,9 +8,7 @@
   --primary-hover: #155247;
   --danger: #9f3f37;
   --danger-hover: #7f2f29;
-  --meter-start: #4f8fce;
-  --meter-mid: #e6b84f;
-  --meter-end: #c75a4a;
+  --meter-spectrum: linear-gradient(90deg, #f44336 0%, #ff9800 16%, #ffeb3b 32%, #4caf50 48%, #00bcd4 64%, #3f51b5 80%, #9c27b0 92%, #f44336 100%);
 }
 
 * {
@@ -221,25 +219,63 @@ select {
 }
 
 .pitch-meter {
-  background: linear-gradient(90deg, var(--meter-start), var(--meter-mid), var(--meter-end));
+  background: var(--meter-spectrum);
   border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgb(20 32 28 / 8%);
   cursor: crosshair;
   height: clamp(32px, 7vh, 64px);
+  overflow: hidden;
   position: relative;
   touch-action: none;
   width: 100%;
 }
 
 .meter-scale {
-  align-items: center;
-  color: rgb(255 255 255 / 86%);
-  display: flex;
-  font-size: 0.9rem;
-  font-weight: 750;
-  height: 100%;
-  justify-content: space-between;
-  padding-inline: 1rem;
+  height: 1.9rem;
   pointer-events: none;
+  position: relative;
+  width: 100%;
+}
+
+.meter-scale-label {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  left: 0%;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.meter-scale-label::before {
+  background: rgb(20 32 28 / 16%);
+  content: "";
+  height: 0.55rem;
+  left: 50%;
+  position: absolute;
+  top: -0.7rem;
+  transform: translateX(-50%);
+  width: 1px;
+}
+
+.meter-scale-label.is-edge-left {
+  transform: translateX(0);
+}
+
+.meter-scale-label.is-edge-left::before {
+  left: 0;
+  transform: none;
+}
+
+.meter-scale-label.is-edge-right {
+  transform: translateX(-100%);
+}
+
+.meter-scale-label.is-edge-right::before {
+  left: 100%;
+  transform: none;
 }
 
 .pitch-marker,
@@ -292,6 +328,14 @@ select {
 
   .readout {
     grid-template-columns: 1fr;
+  }
+
+  .meter-scale-label {
+    font-size: 0.72rem;
+  }
+
+  .meter-scale-label.is-mobile-hidden {
+    display: none;
   }
 
   .tracker-card {

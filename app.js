@@ -18,6 +18,7 @@ const clarityDisplay = document.getElementById("clarityDisplay");
 const statusDisplay = document.getElementById("statusDisplay");
 const toneStatusDisplay = document.getElementById("toneStatusDisplay");
 const pitchMeter = document.getElementById("pitchMeter");
+const octaveScale = document.getElementById("octaveScale");
 const pitchMarker = document.getElementById("pitchMarker");
 const toneMarker = document.getElementById("toneMarker");
 const meterLabel = document.getElementById("meterLabel");
@@ -28,6 +29,16 @@ const MIN_FREQUENCY = 50;
 const MAX_FREQUENCY = 2000;
 const SMOOTHING = 0.2;
 const LOST_PITCH_FRAMES_BEFORE_RESET = 18;
+const SPECTRUM_STOPS = [
+  { color: "#f44336", offset: 0 },
+  { color: "#ff9800", offset: 0.16 },
+  { color: "#ffeb3b", offset: 0.32 },
+  { color: "#4caf50", offset: 0.48 },
+  { color: "#00bcd4", offset: 0.64 },
+  { color: "#3f51b5", offset: 0.8 },
+  { color: "#9c27b0", offset: 0.92 },
+  { color: "#f44336", offset: 1 }
+];
 
 let smoothedPitch = null;
 let lostPitchFrames = 0;
@@ -46,6 +57,7 @@ pitchMeter.addEventListener("pointercancel", endToneDrag);
 
 resetMicDisplays();
 resetToneDisplays();
+initializeMeterSpectrum();
 updateAnalysisModeControls();
 
 async function startAnalysis() {
@@ -291,6 +303,76 @@ function frequencyToMeterPosition(frequency) {
   const normalized = (valueLog - minLog) / (maxLog - minLog);
 
   return Math.max(0, Math.min(1, normalized));
+}
+
+function initializeMeterSpectrum() {
+  pitchMeter.style.background = buildOctaveSpectrumGradient();
+  renderOctaveScale();
+}
+
+function buildOctaveSpectrumGradient() {
+  const octaveStarts = getOctaveFrequencies();
+  const gradientStops = [];
+
+  for (let index = 0; index < octaveStarts.length; index += 1) {
+    const segmentStart = octaveStarts[index];
+    const segmentEnd = Math.min(segmentStart * 2, MAX_FREQUENCY);
+    const startPosition = frequencyToMeterPosition(segmentStart);
+    const endPosition = frequencyToMeterPosition(segmentEnd);
+    const segmentWidth = endPosition - startPosition;
+
+    for (const stop of SPECTRUM_STOPS) {
+      const position = startPosition + segmentWidth * stop.offset;
+      gradientStops.push(`${stop.color} ${(position * 100).toFixed(3)}%`);
+    }
+  }
+
+  return `linear-gradient(90deg, ${gradientStops.join(", ")})`;
+}
+
+function renderOctaveScale() {
+  const octaveFrequencies = getOctaveFrequencies();
+
+  octaveScale.replaceChildren();
+
+  octaveFrequencies.forEach((frequency, index) => {
+    const label = document.createElement("span");
+    const position = frequencyToMeterPosition(frequency);
+
+    label.className = "meter-scale-label";
+    label.textContent = `${formatFrequencyLabel(frequency)} Hz`;
+    label.style.left = `${position * 100}%`;
+
+    if (index === 0) {
+      label.classList.add("is-edge-left");
+    }
+
+    if (index === octaveFrequencies.length - 1) {
+      label.classList.add("is-edge-right");
+    }
+
+    if (index % 2 === 1) {
+      label.classList.add("is-mobile-hidden");
+    }
+
+    octaveScale.append(label);
+  });
+}
+
+function getOctaveFrequencies() {
+  const octaves = [];
+  let frequency = MIN_FREQUENCY;
+
+  while (frequency <= MAX_FREQUENCY) {
+    octaves.push(frequency);
+    frequency *= 2;
+  }
+
+  return octaves;
+}
+
+function formatFrequencyLabel(frequency) {
+  return Number.isInteger(frequency) ? String(frequency) : frequency.toFixed(2);
 }
 
 function meterPositionToFrequency(position) {
